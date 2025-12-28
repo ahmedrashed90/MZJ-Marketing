@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -433,12 +434,18 @@
     const typeCols = selectedTypes.slice(); // column names as-is
     const rows = [];
 
-    for(let d=1; d<=daysN; d++){
+    // Iterate calendar days until we collect daysN rows (Friday INCLUDED in the count)
+    const daysInMonth = new Date(year, monthIndex0 + 1, 0).getDate();
+    let added = 0;
+
+    for(let d=1; d<=daysInMonth && added < daysN; d++){
       const date = new Date(year, monthIndex0, d);
+
+      // Local ISO (avoid UTC shift that can turn 2026-01-01 into 2025-12-31)
       const iso =
-  date.getFullYear() + '-' +
-  String(date.getMonth() + 1).padStart(2, '0') + '-' +
-  String(date.getDate()).padStart(2, '0');
+        date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0');
 
       const isFriday = date.getDay() === 5;
 
@@ -454,9 +461,13 @@
       row["مناسبة"] = isFriday ? "جمعة مباركة" : "";
 
       rows.push(row);
+      added++;
     }
+
     return { rows, typeCols };
   }
+
+
 
 
   function downloadBlob(blob, filename){
@@ -645,4 +656,3 @@ console.log('Done ✅  Created folders in OUTPUT');`;
 </script>
 </body>
 </html>
-
