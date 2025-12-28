@@ -15,6 +15,21 @@
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- Firebase (compat for simplicity) -->
+  <script>
+    window.__fbScriptError = function(src){
+      try{
+        // Fallback: try the structured status labels if present
+        const t = document.querySelector('[data-fb-title]') || document.getElementById('fbTitle');
+        const s = document.querySelector('[data-fb-sub]') || document.getElementById('fbSub');
+        const dot = document.querySelector('[data-fb-dot]') || document.getElementById('fbDot');
+        if(t) t.textContent = 'Firebase';
+        if(s) s.textContent = 'فشل تحميل المكتبة — ' + src;
+        if(dot){ dot.classList.remove('ok'); dot.classList.add('bad'); }
+      }catch(e){}
+      console.error('[Firebase SDK load error]', src);
+    };
+  </script>
+
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -395,6 +410,102 @@
     }
     .kv b{ color: var(--brown); }
     .kv small{ color: var(--muted); display:block; margin-top: 4px; }
+  
+    /* Picker panels (stay-open multi-select) */
+    .picker{
+      margin-top: 12px;
+      border: 1px solid rgba(62,36,32,.14);
+      border-radius: 18px;
+      background: rgba(255,255,255,.62);
+      box-shadow: 0 14px 34px rgba(62,36,32,.12);
+      overflow: hidden;
+      display: none;
+    }
+    .picker.open{ display:block; }
+    .picker-head{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(62,36,32,.10);
+      background: rgba(255,248,239,.65);
+    }
+    .picker-body{ padding: 12px; }
+    .picker-grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 12px;
+    }
+    @media (max-width: 900px){
+      .picker-grid{ grid-template-columns: 1fr; }
+    }
+    .picker-col{
+      border: 1px solid rgba(62,36,32,.10);
+      border-radius: 16px;
+      background: rgba(255,248,239,.55);
+      padding: 12px;
+    }
+    .picker-title{
+      font-weight: 700;
+      color: var(--brown);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .picker-list{
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow:auto;
+      padding-right: 4px;
+    }
+    .pick-item{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(62,36,32,.10);
+      background: rgba(255,255,255,.62);
+      cursor: pointer;
+      user-select: none;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .pick-item:hover{
+      transform: translateY(-1px);
+      border-color: rgba(188,143,116,.45);
+      background: rgba(188,143,116,.10);
+    }
+    .pick-item .left{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      color: var(--brown);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .check{
+      width: 18px; height: 18px;
+      border-radius: 6px;
+      border: 2px solid rgba(62,36,32,.35);
+      background: transparent;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .check.on{
+      border-color: rgba(188,143,116,1);
+      background: rgba(188,143,116,.22);
+    }
+    .check.on:after{
+      content:"✓";
+      font-size: 12px;
+      color: var(--brown);
+      transform: translateY(-1px);
+    }
+
   </style>
 </head>
 <body>
@@ -437,65 +548,105 @@
             <select id="monthSel"></select>
           </div>
         </div>
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label for="publishDays">عدد أيام النشر</label>
+            <input id="publishDays" type="text" inputmode="numeric" placeholder="مثال: 13" />
+          </div>
+          <div>
+            <label>ملاحظة</label>
+            <div style="padding:12px;border:1px dashed rgba(62,36,32,.18);border-radius:14px;background:rgba(255,255,255,.55);color:var(--muted);font-size:12.5px;line-height:1.7;">
+              الشيت هيتولد <b>لأول N يوم</b> من الشهر (حسب العدد). يوم الجمعة يتولد تلقائيًا كـ <b>جمعة مباركة</b>.
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Platforms -->
       <div class="card">
         <h2>المنصات <span style="font-size:12px;color:var(--muted);font-weight:600;">(مرنة)</span></h2>
-        <p class="hint">أضف المنصات اللي هتشتغل عليها. القائمة دي تتحفظ على Firebase وتظهر لك كل مرة.</p>
+        <p class="hint">تضغط مرة واحدة على “اختيار المنصات” وتعلّم على كل المنصات بدون ما تقفل القائمة. كل اختيار يطلع Chip ويتشال من القائمة.</p>
 
-        <div class="adder">
-          <div class="grow">
-            <label for="platformSel">اختر منصة</label>
-            <select id="platformSel">
-              <option value="" selected disabled>— اختر —</option>
-              <option>Instagram</option>
-              <option>TikTok</option>
-              <option>Snapchat</option>
-              <option>Facebook</option>
-              <option>X (Twitter)</option>
-              <option>YouTube Shorts</option>
-              <option>LinkedIn</option>
-              <option value="__custom__">+ منصة مخصصة…</option>
-            </select>
-          </div>
-          <button class="btn" id="addPlatformBtn" type="button">إضافة</button>
-        </div>
-
-        <div id="platformCustomWrap" style="display:none;margin-top:10px;">
-          <label for="platformCustom">اسم المنصة (مخصص)</label>
-          <input id="platformCustom" type="text" placeholder="مثال: Threads" />
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn" id="openPlatformsBtn" type="button">اختيار المنصات</button>
+          <div style="color:var(--muted);font-size:12px;">(تتحفظ على Firebase تلقائيًا)</div>
         </div>
 
         <div class="chips" id="platformChips"></div>
+
+        <div class="picker" id="platformPicker" aria-hidden="true">
+          <div class="picker-head">
+            <div>
+              <b style="color:var(--brown);">اختيار المنصات</b>
+              <div style="color:var(--muted);font-size:12px;margin-top:2px;">علّم على اللي تحتاجه — والقائمة تفضل مفتوحة</div>
+            </div>
+            <button class="btn ghost" id="closePlatformsBtn" type="button">تم</button>
+          </div>
+
+          <div class="picker-body">
+            <div class="picker-grid">
+              <div class="picker-col">
+                <div class="picker-title">المنصات المتاحة</div>
+                <div class="picker-list" id="platformList"></div>
+              </div>
+
+              <div class="picker-col">
+                <div class="picker-title">إضافة منصة مخصصة</div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <input id="platformCustom" type="text" placeholder="مثال: Threads" />
+                  <button class="btn" id="addPlatformCustomBtn" type="button">إضافة</button>
+                </div>
+                <div style="margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7;">
+                  المنصة المخصصة هتظهر عندك كـ Chip مباشرة.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Content Types -->
       <div class="card">
         <h2>أنواع المحتوى <span style="font-size:12px;color:var(--muted);font-weight:600;">(مرنة)</span></h2>
-        <p class="hint">أضف أنواع المحتوى بحرّية. (ريل مواصفات / فيديو قصير / صورة / ستوري… إلخ). تتحفظ على Firebase.</p>
+        <p class="hint">تضغط مرة واحدة على “اختيار أنواع المحتوى” وتعلّم على كل الأنواع. كل اختيار يطلع Chip ويتشال من القائمة.</p>
 
-        <div class="adder">
-          <div class="grow">
-            <label for="typeSel">اختر نوع محتوى</label>
-            <select id="typeSel">
-              <option value="" selected disabled>— اختر —</option>
-              <option>صورة</option>
-              <option>ستوري</option>
-              <option>ريل مواصفات</option>
-              <option>فيديو قصير</option>
-              <option value="__custom__">+ نوع محتوى مخصص…</option>
-            </select>
-          </div>
-          <button class="btn" id="addTypeBtn" type="button">إضافة</button>
-        </div>
-
-        <div id="typeCustomWrap" style="display:none;margin-top:10px;">
-          <label for="typeCustom">اسم نوع المحتوى (مخصص)</label>
-          <input id="typeCustom" type="text" placeholder="مثال: بوست تثبيت / إعلان ممول" />
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn" id="openTypesBtn" type="button">اختيار أنواع المحتوى</button>
+          <div style="color:var(--muted);font-size:12px;">(تتحفظ على Firebase تلقائيًا)</div>
         </div>
 
         <div class="chips" id="typeChips"></div>
+
+        <div class="picker" id="typePicker" aria-hidden="true">
+          <div class="picker-head">
+            <div>
+              <b style="color:var(--brown);">اختيار أنواع المحتوى</b>
+              <div style="color:var(--muted);font-size:12px;margin-top:2px;">علّم على اللي تحتاجه — والقائمة تفضل مفتوحة</div>
+            </div>
+            <button class="btn ghost" id="closeTypesBtn" type="button">تم</button>
+          </div>
+
+          <div class="picker-body">
+            <div class="picker-grid">
+              <div class="picker-col">
+                <div class="picker-title">الأنواع المتاحة</div>
+                <div class="picker-list" id="typeList"></div>
+              </div>
+
+              <div class="picker-col">
+                <div class="picker-title">إضافة نوع مخصص</div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <input id="typeCustom" type="text" placeholder="مثال: بوست تثبيت" />
+                  <button class="btn" id="addTypeCustomBtn" type="button">إضافة</button>
+                </div>
+                <div style="margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7;">
+                  النوع المخصص هيتضاف كـ Chip مباشرة.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Output -->
@@ -595,8 +746,9 @@
     const month = $('monthSel').value;
     const platforms = state.platforms;
     const types = state.types;
+    const publishDays = state.publishDays;
 
-    const ok = !!year && !!month && platforms.length > 0 && types.length > 0;
+    const ok = !!year && !!month && platforms.length > 0 && types.length > 0 && Number.isFinite(publishDays) && publishDays > 0;
     $('downloadSheetBtn').disabled = !ok;
     $('downloadScriptBtn').disabled = !ok;
 
@@ -637,6 +789,7 @@
     year: null,
     monthIndex0: null,
     filePrefix: '',
+    publishDays: null,
   };
 
   /* ---------------------------
@@ -683,6 +836,14 @@
     state.filePrefix = e.target.value || '';
   });
 
+  $('publishDays').addEventListener('input', (e) => {
+    const v = String(e.target.value || '').replace(/[^\d]/g,'');
+    e.target.value = v;
+    state.publishDays = v ? Number(v) : null;
+    saveSettingsDebounced();
+    ensureReadyState();
+  });
+
   /* ---------------------------
      Chips rendering
   ----------------------------*/
@@ -699,6 +860,7 @@
       el.querySelector('button').addEventListener('click', () => {
         state.platforms = state.platforms.filter(x => x !== p);
         renderChips();
+        renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
         saveSettingsDebounced();
         ensureReadyState();
       });
@@ -712,6 +874,7 @@
       el.querySelector('button').addEventListener('click', () => {
         state.types = state.types.filter(x => x !== t);
         renderChips();
+        renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
         saveSettingsDebounced();
         ensureReadyState();
       });
@@ -725,11 +888,56 @@
     }[c]));
   }
 
-  function addPlatform(name){
+  
+  /* ---------------------------
+     Picker Lists (stay-open multi-select)
+  ----------------------------*/
+  const PLATFORM_DEFAULTS = ["Instagram","TikTok","Snapchat","Facebook","X (Twitter)","YouTube Shorts","LinkedIn"];
+  const TYPE_DEFAULTS = ["صورة","ستوري","ريل مواصفات","فيديو قصير"];
+
+  function renderPickerList(listEl, defaults, selected, onAdd){
+    listEl.innerHTML = '';
+    const available = defaults.filter(x => !selected.includes(x));
+    if(!available.length){
+      const empty = document.createElement('div');
+      empty.style.color = 'rgba(30,27,24,.55)';
+      empty.style.fontSize = '12.5px';
+      empty.style.padding = '6px 2px';
+      empty.textContent = 'تم اختيار كل العناصر ✅';
+      listEl.appendChild(empty);
+      return;
+    }
+    available.forEach((name) => {
+      const row = document.createElement('div');
+      row.className = 'pick-item';
+      row.innerHTML = `
+        <div class="left">
+          <span class="check"></span>
+          <span>${escapeHtml(name)}</span>
+        </div>
+        <span style="color:rgba(30,27,24,.55);font-size:12px;">إضافة</span>
+      `;
+      row.addEventListener('click', () => onAdd(name));
+      listEl.appendChild(row);
+    });
+  }
+
+  function openPicker(pickerEl){
+    pickerEl.classList.add('open');
+    pickerEl.setAttribute('aria-hidden','false');
+  }
+  function closePicker(pickerEl){
+    pickerEl.classList.remove('open');
+    pickerEl.setAttribute('aria-hidden','true');
+  }
+
+function addPlatform(name){
     const n = (name||'').trim();
     if(!n) return;
+    if(state.platforms.includes(n)) return;
     state.platforms = uniq([...state.platforms, n]);
     renderChips();
+    renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
     saveSettingsDebounced();
     ensureReadyState();
   }
@@ -737,8 +945,10 @@
   function addType(name){
     const n = (name||'').trim();
     if(!n) return;
+    if(state.types.includes(n)) return;
     state.types = uniq([...state.types, n]);
     renderChips();
+    renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
     saveSettingsDebounced();
     ensureReadyState();
   }
@@ -755,8 +965,20 @@
     }else{
       wrap.style.display = 'none';
       $('platformCustom').value = '';
+      addPlatform(v);
+      $('platformSel').selectedIndex = 0;
     }
   });
+  $('platformCustom').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      addPlatform($('platformCustom').value);
+      $('platformSel').selectedIndex = 0;
+      $('platformCustomWrap').style.display = 'none';
+      $('platformCustom').value = '';
+    }
+  });
+
   $('addPlatformBtn').addEventListener('click', () => {
     const v = $('platformSel').value;
     if(v === '__custom__'){
@@ -782,8 +1004,20 @@
     }else{
       wrap.style.display = 'none';
       $('typeCustom').value = '';
+      addType(v);
+      $('typeSel').selectedIndex = 0;
     }
   });
+  $('typeCustom').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      addType($('typeCustom').value);
+      $('typeSel').selectedIndex = 0;
+      $('typeCustomWrap').style.display = 'none';
+      $('typeCustom').value = '';
+    }
+  });
+
   $('addTypeBtn').addEventListener('click', () => {
     const v = $('typeSel').value;
     if(v === '__custom__'){
@@ -797,7 +1031,47 @@
     $('typeCustom').value = '';
   });
 
+  
   /* ---------------------------
+     Platform/Type Picker logic
+  ----------------------------*/
+  $('openPlatformsBtn').addEventListener('click', () => openPicker($('platformPicker')));
+  $('closePlatformsBtn').addEventListener('click', () => closePicker($('platformPicker')));
+
+  $('openTypesBtn').addEventListener('click', () => openPicker($('typePicker')));
+  $('closeTypesBtn').addEventListener('click', () => closePicker($('typePicker')));
+
+  $('addPlatformCustomBtn').addEventListener('click', () => {
+    addPlatform($('platformCustom').value);
+    $('platformCustom').value = '';
+    $('platformCustom').focus();
+  });
+  $('platformCustom').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      addPlatform($('platformCustom').value);
+      $('platformCustom').value = '';
+    }
+  });
+
+  $('addTypeCustomBtn').addEventListener('click', () => {
+    addType($('typeCustom').value);
+    $('typeCustom').value = '';
+    $('typeCustom').focus();
+  });
+  $('typeCustom').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      addType($('typeCustom').value);
+      $('typeCustom').value = '';
+    }
+  });
+
+  // Initial list render
+  renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
+  renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
+
+/* ---------------------------
      Preview modal
   ----------------------------*/
   const modalBackdrop = $('modalBackdrop');
@@ -805,22 +1079,24 @@
     const year = Number(yearSel.value);
     const mi = Number(monthSel.value);
     const dim = daysInMonth(year, mi);
+    const nRaw = Number.isFinite(state.publishDays) ? state.publishDays : 0;
+    const n = Math.min(Math.max(nRaw, 0), dim);
     let fridays = 0;
-    for(let d=1; d<=dim; d++){
+    for(let d=1; d<=n; d++){
       if(isFriday(new Date(year, mi, d))) fridays++;
     }
 
     const body = $('modalBody');
     body.innerHTML = `
       <div class="kvs">
-        <div class="kv"><b>الفترة</b><small>${monthNamesAr[mi]} ${year}</small></div>
+        <div class="kv"><b>الفترة</b><small>${monthNamesAr[mi]} ${year} — ${n} يوم نشر</small></div>
         <div class="kv"><b>قاعدة الجمعة</b><small>جمعة مباركة تلقائيًا (${fridays} جمعة داخل الشهر)</small></div>
         <div class="kv"><b>المنصات</b><small>${state.platforms.length ? state.platforms.map(escapeHtml).join('، ') : '—'}</small></div>
         <div class="kv"><b>أنواع المحتوى</b><small>${state.types.length ? state.types.map(escapeHtml).join('، ') : '—'}</small></div>
       </div>
       <div style="margin-top:12px;">
         <b style="color:var(--brown);">هيتولّد الشيت بأعمدة:</b>
-        <div style="margin-top:6px;color:var(--muted);">اليوم • المنصات (في خلية واحدة) • أنواع المحتوى (في خلية واحدة) • اسم السيارة (تكتبه أنت)</div>
+        <div style="margin-top:6px;color:var(--muted);">اليوم • المنصة • نوع المحتوى • اسم السيارة (تكتبه أنت)</div>
         <div style="margin-top:10px;color:var(--muted);">ملاحظة: في يوم الجمعة، “اسم السيارة” يفضل فاضي والصف يكون “جمعة مباركة”.</div>
       </div>
     `;
@@ -840,13 +1116,15 @@
     const dim = daysInMonth(year, mi);
 
     const rows = [];
-    // Header row (one row per day)
     rows.push(["اليوم", "المنصات", "أنواع المحتوى", "اسم السيارة"]);
 
     const platformsCell = state.platforms.join(" | ");
     const typesCell = state.types.join(" | ");
 
-    for(let d=1; d<=dim; d++){
+    const nRaw = Number.isFinite(state.publishDays) ? state.publishDays : 0;
+    const n = Math.min(Math.max(nRaw, 0), dim);
+
+    for(let d=1; d<=n; d++){
       const date = new Date(year, mi, d);
       const dayLabel = fmtDayLabel(year, mi, d);
 
@@ -872,9 +1150,9 @@
 
     ws['!cols'] = [
       { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
       { wch: 42 },
-      { wch: 46 },
-      { wch: 46 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -907,7 +1185,7 @@
  * Generated: ${new Date().toISOString()}
  *
  * ✅ Reads rows from the sheet (columns):
- *   اليوم | المنصات | أنواع المحتوى | اسم السيارة
+ *   اليوم | المنصة | نوع المحتوى | اسم السيارة
  *
  * ✅ Friday is automatic: نوع المحتوى = "جمعة مباركة"
  *
@@ -927,9 +1205,9 @@
 const ROOT_FOLDER_ID = "PUT_ROOT_FOLDER_ID_HERE";
 const SHEET_NAME = "Plan"; // tab name
 const COL_DAY = 1;       // A: اليوم
-const COL_PLATFORMS = 2;  // B: المنصات (خلية واحدة)
-const COL_TYPES = 3;      // C: أنواع المحتوى (خلية واحدة)
-const COL_CAR = 4;        // D: اسم السيارة
+const COL_PLATFORM = 2;  // B: المنصة
+const COL_TYPE = 3;      // C: نوع المحتوى
+const COL_CAR = 4;       // D: اسم السيارة
 
 const DEFAULT_PLATFORMS = ${platforms};
 const DEFAULT_TYPES = ${types};
@@ -1042,22 +1320,71 @@ function getOrCreateFolder_(parent, name) {
   let settingsRef = null;
 
   function setFbStatus(kind, title, sub){
-    fbDot.classList.remove('ok','bad');
+    const fbTitle = document.getElementById('fbTitle');
+    const fbSub = document.getElementById('fbSub');
+    const fbDot = document.getElementById('fbDot');
+    if(!fbTitle || !fbSub || !fbDot) return;
+    fbDot.classList.remove('ok','bad','warn');
     if(kind === 'ok') fbDot.classList.add('ok');
     if(kind === 'bad') fbDot.classList.add('bad');
+    if(kind === 'warn') fbDot.classList.add('warn');
     fbTitle.textContent = title;
     fbSub.textContent = sub;
   }
 
   function initFirebase(){
+    setFbStatus('warn','Firebase','جاري الاتصال…');
+    // Never hang forever on "جاري الاتصال"
+    const timeoutMs = 8000;
+    const t = setTimeout(() => {
+      setFbStatus('bad', 'Firebase', 'تعذّر الاتصال (Timeout) — شيّك الشبكة/Rules');
+      console.warn('[Firebase] init timeout');
+    }, timeoutMs);
+
     try{
+      if (typeof window.firebase === 'undefined') {
+        setFbStatus('bad', 'Firebase', 'SDK غير متاح — المكتبات ما تحمّلت');
+        return;
+      }
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
       settingsRef = db.collection('settings').doc('content-planner');
-      setFbStatus('ok', 'Firebase', 'متصل ✅');
-      loadSettingsFromFirebase();
+
+      // quick probe read to surface rules errors
+      settingsRef.get()
+        .then((snap) => {
+          clearTimeout(t);
+          setFbStatus('ok', 'Firebase', 'متصل ✅');
+          // if doc missing, try seed (may be blocked by rules)
+          if(!snap.exists){
+            return settingsRef.set({
+              platforms: [],
+              contentTypes: [],
+              publishDays: null,
+              filePrefix: '',
+              lastYear: null,
+              lastMonth: null,
+              updatedAt: Date.now()
+            }, { merge: true });
+          }
+        })
+        .then(() => {
+          loadSettingsFromFirebase();
+        })
+        .catch((err) => {
+          clearTimeout(t);
+          console.error('[Firebase probe error]', err);
+          const msg = String(err && (err.code || err.message) || err);
+          if(msg.includes('permission') || msg.includes('PERMISSION') || msg.includes('permission-denied')){
+            setFbStatus('bad', 'Firebase', 'مرفوض (Rules) — افتح settings/content-planner');
+          }else{
+            setFbStatus('bad', 'Firebase', 'فشل الاتصال — ' + (err.message || msg));
+          }
+        });
+
     }catch(err){
-      console.error(err);
+      clearTimeout(t);
+      console.error('[Firebase init error]', err);
       setFbStatus('bad', 'Firebase', 'فشل الاتصال');
     }
   }
@@ -1070,11 +1397,14 @@ function getOrCreateFolder_(parent, name) {
         const data = snap.data() || {};
         state.platforms = uniq(data.platforms || []);
         state.types = uniq(data.contentTypes || []);
+        if(Number.isFinite(data.publishDays)) { state.publishDays = data.publishDays; $('publishDays').value = String(data.publishDays); }
         if(data.lastYear) yearSel.value = String(data.lastYear);
         if(Number.isFinite(data.lastMonthIndex0)) monthSel.value = String(data.lastMonthIndex0);
         state.year = Number(yearSel.value);
         state.monthIndex0 = Number(monthSel.value);
         renderChips();
+        renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
+        renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
         ensureReadyState();
         setFbStatus('ok','Firebase','تم تحميل الإعدادات');
       }else{
@@ -1100,6 +1430,7 @@ function getOrCreateFolder_(parent, name) {
       await settingsRef.set({
         platforms: state.platforms,
         contentTypes: state.types,
+        publishDays: state.publishDays,
         lastYear: Number(yearSel.value),
         lastMonthIndex0: Number(monthSel.value),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1120,7 +1451,26 @@ function getOrCreateFolder_(parent, name) {
 
   // init firebase after scripts are loaded
   window.addEventListener('load', () => {
-    initFirebase();
+    setFbStatus('warn', 'Firebase', 'جاري الاتصال…');
+
+    // If Firebase SDK is blocked (AdBlock/Firewall/Network), surface it quickly
+    const sdkTimer = setTimeout(() => {
+      if (typeof window.firebase === 'undefined') {
+        setFbStatus('bad', 'Firebase', 'SDK لم يتحمل — اقفل AdBlock/Firewall أو جرّب شبكة/متصفح ثاني');
+      }
+    }, 5000);
+
+    // Start firebase init after a tick (so DOM elements exist)
+    setTimeout(() => {
+      try{
+        initFirebase();
+      }catch(e){
+        console.error('[initFirebase throw]', e);
+        setFbStatus('bad', 'Firebase', 'خطأ JavaScript — راجع Console');
+      }
+    }, 0);
+
+    // We don't clear sdkTimer here; it'll self-resolve once SDK exists/loads.
     ensureReadyState();
   });
 
