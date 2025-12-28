@@ -172,7 +172,7 @@
         <div class="logo"></div>
         <div style="min-width:0">
           <p class="ttl">MZJ — مولد خطة النشر</p>
-          <p class="sub"></p>
+          <p class="sub">اختار الشهر والسنة وعدد أيام النشر والمنصات وأنواع المحتوى. بعدين حمّل الشيت والسكربت (ويندوز) لإنشاء الفولدرات تلقائيًا على جهازك.</p>
         </div>
       </div>
     </div>
@@ -180,7 +180,7 @@
     <div class="grid">
       <div class="card">
         <h2>إعدادات الفترة</h2>
-        <p class="hint">".</p>
+        <p class="hint">اختار الشهر والسنة وعدد أيام النشر. يوم الجمعة يولّد تلقائيًا "جمعة مباركة".</p>
         <div class="row">
           <div class="field">
             <label>السنة</label>
@@ -199,7 +199,7 @@
 
       <div class="card">
         <h2>مخرجات التحميل</h2>
-        <p class="hint">الشيت فيه (اليوم/المنصات/نوع المحتوى/اسم السيارة). السكربت (ويندوز) يقرأ الشيت ويعمل الفولدرات داخل OUTPUT.</p>
+        <p class="hint">الشيت فيه (اليوم/المنصات + عمود لكل نوع محتوى + مناسبة). السكربت (ويندوز) يقرأ الشيت ويعمل الفولدرات داخل OUTPUT.</p>
         <div class="row">
           <button class="btn primary" id="downloadExcelBtn" type="button">تحميل الشيت (Excel)</button>
           <button class="btn" id="downloadWinZipBtn" type="button">تحميل سكربت ويندوز (ZIP)</button>
@@ -430,21 +430,30 @@
     const monthIndex0 = Number(monthSel.value);
     const daysN = Math.max(0, Number((publishDays.value||'').trim()) || 0);
 
+    const typeCols = selectedTypes.slice(); // column names as-is
     const rows = [];
+
     for(let d=1; d<=daysN; d++){
       const date = new Date(year, monthIndex0, d);
       const iso = date.toISOString().slice(0,10);
       const isFriday = date.getDay() === 5;
 
-      rows.push({
+      const row = {
         "اليوم": iso,
-        "المنصات": selectedPlatforms.join(', '),
-        "نوع المحتوى": selectedTypes.join(', '),
-        "اسم السيارة": isFriday ? 'جمعة مباركة' : ''
-      });
+        "المنصات": selectedPlatforms.join(', ')
+      };
+
+      // one column per content type (you will fill car names later)
+      typeCols.forEach(t => { row[t] = ""; });
+
+      // Friday marker (folders: جمعة مباركة -> صور + ستوري)
+      row["مناسبة"] = isFriday ? "جمعة مباركة" : "";
+
+      rows.push(row);
     }
-    return rows;
+    return { rows, typeCols };
   }
+
 
   function downloadBlob(blob, filename){
     const url = URL.createObjectURL(blob);
@@ -480,9 +489,19 @@
     }
     if(!requireBasics()) return;
 
-    const rows = buildPlanRows();
-    const ws = XLSX.utils.json_to_sheet(rows, { header: ["اليوم","المنصات","نوع المحتوى","اسم السيارة"] });
-    ws['!cols'] = [{wch:14},{wch:36},{wch:36},{wch:40}];
+    const built = buildPlanRows();
+    const rows = built.rows;
+    const typeCols = built.typeCols;
+
+    const headers = ["اليوم","المنصات", ...typeCols, "مناسبة"];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+
+    // widths
+    const cols = [{wch:14},{wch:44}];
+    for(let i=0;i<typeCols.length;i++) cols.push({wch:26});
+    cols.push({wch:18}); // مناسبة
+    ws['!cols'] = cols;
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plan');
 
@@ -499,17 +518,18 @@ const path = require('path');
 const XLSX = require('xlsx');
 
 function safeName(s){
-  return String(s||'').trim().replace(/[\\/:*?\"<>|]/g,'-').replace(/\s+/g,' ').trim();
+  return String(s||'').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
 }
 function ensureDir(p){ if(!fs.existsSync(p)) fs.mkdirSync(p,{recursive:true}); }
 function splitList(s){ return String(s||'').split(',').map(x=>x.trim()).filter(Boolean); }
-function typeFolders(typeName){
-  const t = (typeName||'').toLowerCase();
-  if(t.includes('صورة') || t.includes('بوست')) return ['صور','ستوري'];
-  if(t.includes('مواصفات')) return ['ريل مواصفات'];
+
+// Map column name (content type) to folder(s)
+function typeFolders(typeCol){
+  const t = String(typeCol||'').toLowerCase();
+  if(t.includes('بوست') || t.includes('صورة')) return ['صور','ستوري'];
+  if(t.includes('مواصفات') || t.includes('ريل')) return ['ريل مواصفات'];
   if(t.includes('فيديو') || t.includes('قصير')) return ['فيديو قصير'];
-  if(t.includes('جمعة')) return ['صور','ستوري'];
-  return [safeName(typeName)];
+  return [safeName(typeCol)];
 }
 
 const root = path.join(__dirname,'OUTPUT');
@@ -531,24 +551,27 @@ for(const r of rows){
   if(!day) continue;
 
   const platforms = splitList(r['المنصات'] || '');
-  const types = splitList(r['نوع المحتوى'] || '');
-  const car = safeName(r['اسم السيارة'] || '');
+  const note = safeName(r['مناسبة'] || '');
 
-  const isFridayPost = (car === 'جمعة مباركة');
-
-  if(isFridayPost){
+  // Friday special
+  if(note === 'جمعة مباركة'){
     const base = path.join(root, day, 'جمعة مباركة');
     ensureDir(path.join(base,'صور'));
     ensureDir(path.join(base,'ستوري'));
     continue;
   }
 
+  // For each content type column (any column except fixed ones)
+  const fixed = new Set(['اليوم','المنصات','مناسبة']);
+  const contentTypeCols = Object.keys(r).filter(k => !fixed.has(k));
+
   for(const p of platforms){
     const platBase = path.join(root, day, safeName(p));
-    for(const t of types){
-      const folders = typeFolders(t);
+    for(const col of contentTypeCols){
+      const car = safeName(r[col] || '') || 'اسم السيارة';
+      const folders = typeFolders(col);
       for(const f of folders){
-        const target = path.join(platBase, f, car || 'اسم السيارة');
+        const target = path.join(platBase, f, car);
         ensureDir(target);
       }
     }
@@ -587,17 +610,20 @@ console.log('Done ✅  Created folders in OUTPUT');`;
 
   function openPreview(){
     if(!requireBasics()) return;
-    const rows = buildPlanRows();
+    const built = buildPlanRows();
+    const rows = built.rows;
+    const typeCols = built.typeCols;
+
     $('previewTitle').textContent = `معاينة — ${rows.length} يوم`;
-    const body = $('previewBody');
-    const thead = `<tr><th>اليوم</th><th>المنصات</th><th>نوع المحتوى</th><th>اسم السيارة</th></tr>`;
-    const trs = rows.map(r => `<tr>
-      <td>${r['اليوم']}</td>
-      <td>${r['المنصات']}</td>
-      <td>${r['نوع المحتوى']}</td>
-      <td>${r['اسم السيارة']}</td>
-    </tr>`).join('');
-    body.innerHTML = `<table>${thead}${trs}</table>`;
+
+    const headers = ["اليوم","المنصات", ...typeCols, "مناسبة"];
+    const thead = `<tr>` + headers.map(h=>`<th>${h}</th>`).join('') + `</tr>`;
+
+    const trs = rows.map(r => {
+      return `<tr>` + headers.map(h => `<td>${(r[h] ?? '')}</td>`).join('') + `</tr>`;
+    }).join('');
+
+    $('previewBody').innerHTML = `<table>${thead}${trs}</table>`;
     $('modalBack').classList.add('open');
   }
 
@@ -615,5 +641,3 @@ console.log('Done ✅  Created folders in OUTPUT');`;
 </script>
 </body>
 </html>
-
-
