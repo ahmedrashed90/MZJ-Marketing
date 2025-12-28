@@ -5,11 +5,12 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>MZJ — مولد خطة النشر</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
-  <!-- Libraries -->
+  <!-- Libs (defer) -->
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
@@ -18,100 +19,77 @@
       --brown: rgb(62,36,32);
       --beige: rgb(188,143,116);
       --cream: #fff8ef;
-      --card: rgba(255,255,255,.55);
       --line: rgba(62,36,32,.14);
       --text: #2b201e;
       --muted: rgba(43,32,30,.65);
       --shadow: 0 18px 55px rgba(62,36,32,.12);
-      --r: 18px;
+      --r: 22px;
     }
     *{box-sizing:border-box}
     body{
       margin:0;
-      font-family: "Tajawal", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      font-family:"Tajawal", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      color:var(--text);
+      min-height:100vh;
       background:
         radial-gradient(900px 500px at 10% 10%, rgba(188,143,116,.22), transparent 60%),
         radial-gradient(900px 500px at 90% 20%, rgba(62,36,32,.16), transparent 55%),
         linear-gradient(180deg, #fff3e6, var(--cream));
-      color:var(--text);
-      min-height:100vh;
       overflow-x:hidden;
     }
-    /* mouse glow */
     .glow{
-      position:fixed; inset:-200px;
-      pointer-events:none;
-      background: radial-gradient(320px 320px at var(--mx,50%) var(--my,50%), rgba(188,143,116,.22), transparent 60%);
+      position:fixed; inset:-200px; pointer-events:none; z-index:0;
+      background: radial-gradient(340px 340px at var(--mx,50%) var(--my,50%), rgba(188,143,116,.22), transparent 60%);
       filter: blur(1px);
-      z-index:0;
     }
-    .wrap{position:relative; z-index:1; max-width:1100px; margin:26px auto; padding:0 18px 40px;}
+    .wrap{position:relative; z-index:1; max-width:1180px; margin:26px auto; padding:0 18px 42px;}
     .top{
       display:flex; align-items:center; justify-content:space-between; gap:14px;
       background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.45));
       border:1px solid var(--line);
       box-shadow: var(--shadow);
-      border-radius: 22px;
+      border-radius: var(--r);
       padding:16px 18px;
       margin-bottom:16px;
     }
-    .brand{
-      display:flex; align-items:center; gap:12px;
-      min-width:0;
-    }
+    .brand{display:flex; align-items:center; gap:12px; min-width:0;}
     .logo{
       width:44px; height:44px; border-radius:16px;
-      background: radial-gradient(80% 80% at 25% 20%, rgba(255,255,255,.45), transparent 60%), linear-gradient(135deg, var(--beige), var(--brown));
+      background:
+        radial-gradient(80% 80% at 25% 20%, rgba(255,255,255,.45), transparent 60%),
+        linear-gradient(135deg, var(--beige), var(--brown));
       box-shadow: 0 10px 22px rgba(62,36,32,.22);
+      flex:0 0 auto;
     }
-    .ttl{font-weight:800; color:var(--brown); font-size:18px; margin:0}
-    .sub{margin:2px 0 0; color:var(--muted); font-size:13px; line-height:1.4; max-width:560px}
-    .fb{
-      display:flex; align-items:center; gap:10px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      background: rgba(255,255,255,.55);
-      border-radius: 16px;
-      min-width:220px;
-      justify-content:space-between;
-    }
-    .dot{width:10px; height:10px; border-radius:50%; background:#d1b3a5; box-shadow:0 0 0 3px rgba(188,143,116,.18)}
-    .fb b{font-weight:800; color:var(--brown)}
-    .fb small{color:var(--muted)}
+    .ttl{margin:0; font-weight:900; color:var(--brown); font-size:18px}
+    .sub{margin:2px 0 0; color:var(--muted); font-size:13px; line-height:1.45; max-width:640px}
     .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap:16px;
     }
     @media (max-width: 900px){
-      .grid{grid-template-columns:1fr}
-      .fb{min-width:unset; width:100%}
       .top{flex-direction:column; align-items:stretch}
+      .grid{grid-template-columns:1fr}
     }
     .card{
       background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.42));
       border:1px solid var(--line);
-      border-radius: 22px;
+      border-radius: var(--r);
       box-shadow: var(--shadow);
       padding:16px;
     }
-    .card h2{
-      margin:0 0 10px;
-      font-size:16px;
-      font-weight:900;
-      color:var(--brown);
-      letter-spacing:.2px;
-    }
+    .card h2{margin:0 0 10px; font-size:16px; font-weight:900; color:var(--brown)}
     .hint{margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.6}
     .row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end}
-    .field{flex:1; min-width:160px}
+    .field{flex:1; min-width:180px}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
     select, input{
       width:100%;
       padding:12px 12px;
       border-radius: 14px;
       border:1px solid rgba(62,36,32,.18);
-      background: rgba(255,255,255,.75);
+      background: rgba(255,255,255,.78);
       font-family: inherit;
       outline:none;
     }
@@ -121,113 +99,67 @@
       padding:12px 14px;
       border-radius: 14px;
       border:1px solid rgba(62,36,32,.18);
-      background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.55));
+      background: linear-gradient(135deg, rgba(255,255,255,.78), rgba(255,255,255,.55));
       font-family: inherit;
-      font-weight:800;
+      font-weight:900;
       color:var(--brown);
       box-shadow: 0 10px 26px rgba(62,36,32,.10);
       transition: transform .12s ease, box-shadow .12s ease;
+      user-select:none;
+      white-space:nowrap;
     }
     .btn:hover{transform: translateY(-1px); box-shadow: 0 14px 30px rgba(62,36,32,.14)}
     .btn.primary{
       border-color: rgba(188,143,116,.55);
-      background: linear-gradient(135deg, rgba(188,143,116,.30), rgba(255,255,255,.65));
+      background: linear-gradient(135deg, rgba(188,143,116,.28), rgba(255,255,255,.70));
     }
-    .picker{
-      display:none;
-      margin-top:12px;
-      border:1px solid rgba(62,36,32,.16);
-      background: rgba(255,255,255,.55);
-      border-radius: 18px;
-      padding:12px;
-    }
+    .btn:disabled{opacity:.55; cursor:not-allowed; transform:none}
+    .picker{display:none; margin-top:12px; border:1px solid rgba(62,36,32,.16); background: rgba(255,255,255,.55); border-radius: 18px; padding:12px;}
     .picker.open{display:block}
     .pickerHead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
     .pickerHead b{color:var(--brown)}
-    .list{
-      max-height: 240px;
-      overflow:auto;
-      padding:6px;
-      border-radius: 14px;
-      border:1px dashed rgba(62,36,32,.18);
-      background: rgba(255,255,255,.55);
-    }
-    .item{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:10px 10px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.65);
-      border:1px solid rgba(62,36,32,.10);
-      margin-bottom:8px;
-    }
+    .list{max-height: 240px; overflow:auto; padding:6px; border-radius: 14px; border:1px dashed rgba(62,36,32,.18); background: rgba(255,255,255,.55);}
+    .item{display:flex; align-items:center; justify-content:space-between; padding:10px 10px; border-radius: 12px; background: rgba(255,255,255,.65); border:1px solid rgba(62,36,32,.10); margin-bottom:8px;}
     .chipWrap{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
-    .chip{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:8px 10px;
-      border-radius: 999px;
-      background: rgba(188,143,116,.20);
-      border:1px solid rgba(188,143,116,.35);
-      color:var(--brown);
-      font-weight:800;
-      font-size:13px;
-    }
-    .chip button{
-      border:none; background:transparent; cursor:pointer;
-      color:rgba(62,36,32,.75); font-weight:900; font-size:14px;
-    }
-    .mini{
-      display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
-      margin-top:10px;
-    }
-    .mini .field{min-width:220px}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius: 999px; background: rgba(188,143,116,.20); border:1px solid rgba(188,143,116,.35); color:var(--brown); font-weight:900; font-size:13px;}
+    .chip button{border:none; background:transparent; cursor:pointer; color:rgba(62,36,32,.75); font-weight:900; font-size:16px; line-height:1}
+    .mini{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;}
     .toast{
-      position: fixed; left:18px; bottom:18px;
-      padding:12px 14px;
-      border-radius: 14px;
+      position: fixed; left:18px; bottom:18px; z-index:10;
+      padding:12px 14px; border-radius: 14px;
       border:1px solid rgba(62,36,32,.16);
-      background: rgba(255,255,255,.85);
+      background: rgba(255,255,255,.88);
       box-shadow: 0 16px 40px rgba(62,36,32,.14);
       color:var(--brown);
-      font-weight:800;
+      font-weight:900;
       display:none;
-      z-index:5;
+      max-width:min(420px, calc(100vw - 36px));
     }
+    /* preview modal */
+    .modalBack{
+      position:fixed; inset:0; background:rgba(20,10,8,.35);
+      display:none; align-items:center; justify-content:center; padding:18px; z-index:20;
+      backdrop-filter: blur(2px);
+    }
+    .modalBack.open{display:flex}
+    .modal{
+      width:min(980px, 100%);
+      max-height:min(85vh, 760px);
+      overflow:auto;
+      background: rgba(255,255,255,.92);
+      border:1px solid rgba(62,36,32,.18);
+      border-radius: 22px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.18);
+      padding:14px;
+    }
+    .modalTop{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px}
+    .modalTop b{color:var(--brown); font-size:15px}
+    table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:16px; border:1px solid rgba(62,36,32,.16)}
+    th, td{padding:10px 10px; font-size:13px; border-bottom:1px solid rgba(62,36,32,.10); vertical-align:top}
+    th{background: rgba(188,143,116,.18); color:var(--brown); font-weight:900; position:sticky; top:0}
+    tr:last-child td{border-bottom:none}
+    td{background: rgba(255,255,255,.65)}
   </style>
-
-  <!-- Firebase (ESM) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCUniCf_A3fyZHbUN0REKhrFwhjYbojWIc",
-      authDomain: "mzj-content-planner.firebaseapp.com",
-      projectId: "mzj-content-planner",
-      storageBucket: "mzj-content-planner.firebasestorage.app",
-      messagingSenderId: "702048592652",
-      appId: "1:702048592652:web:9b3377dacbe4c98b339f29",
-      measurementId: "G-J77RGXSL4R"
-    };
-
-    try{
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const ref = doc(db, 'settings', 'content-planner');
-
-      async function ping(){
-        await getDoc(ref);
-        await setDoc(ref, { lastPing: serverTimestamp() }, { merge: true });
-        return true;
-      }
-
-      window.__fbReady = Promise.resolve({ db, ref, getDoc, setDoc, serverTimestamp, ping });
-      console.log('Firebase ready ✅');
-    }catch(e){
-      window.__fbReady = Promise.reject(e);
-      console.error('Firebase init failed ❌', e);
-    }
-  </script>
-
 </head>
 
 <body>
@@ -239,19 +171,8 @@
         <div class="logo"></div>
         <div style="min-width:0">
           <p class="ttl">MZJ — مولد خطة النشر</p>
-          <p class="sub">اختار الشهر والسنة وعدد أيام النشر والمنصات وأنواع المحتوى. بعدين حمّل الشيت والسكربت (ويندوز) لإنشاء الفولدرات تلقائيًا.</p>
+          <p class="sub">اختار الشهر والسنة وعدد أيام النشر والمنصات وأنواع المحتوى. بعدين حمّل الشيت والسكربت (ويندوز) لإنشاء الفولدرات تلقائيًا على جهازك.</p>
         </div>
-      </div>
-
-      <div class="fb" title="الاتصال بـ Firestore (اختياري)">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="dot" id="fbDot"></span>
-          <div>
-            <b>Firebase</b><br>
-            <small id="fbText">جاري الاتصال…</small>
-          </div>
-        </div>
-        <button class="btn" type="button" id="fbBtn">تحديث من Firebase</button>
       </div>
     </div>
 
@@ -259,7 +180,6 @@
       <div class="card">
         <h2>إعدادات الفترة</h2>
         <p class="hint">اختار الشهر والسنة وعدد أيام النشر. يوم الجمعة يولّد تلقائيًا "جمعة مباركة".</p>
-
         <div class="row">
           <div class="field">
             <label>السنة</label>
@@ -278,13 +198,14 @@
 
       <div class="card">
         <h2>مخرجات التحميل</h2>
-        <p class="hint">الشيت فيه (اليوم/المنصات/نوع المحتوى/اسم السيارة). السكربت ويندوز يقرأ الشيت ويعمل الفولدرات على جهازك.</p>
+        <p class="hint">الشيت فيه (اليوم/المنصات/نوع المحتوى/اسم السيارة). السكربت (ويندوز) يقرأ الشيت ويعمل الفولدرات داخل OUTPUT.</p>
         <div class="row">
           <button class="btn primary" id="downloadExcelBtn" type="button">تحميل الشيت (Excel)</button>
           <button class="btn" id="downloadWinZipBtn" type="button">تحميل سكربت ويندوز (ZIP)</button>
+          <button class="btn" id="previewBtn" type="button">معاينة</button>
         </div>
         <div class="mini">
-          <div class="field">
+          <div class="field" style="min-width:320px">
             <label>ملاحظة التشغيل</label>
             <input disabled value="فك الـ ZIP → سمّي الشيت plan.xlsx → شغّل RUN.bat → المخرجات داخل OUTPUT" />
           </div>
@@ -322,7 +243,7 @@
 
       <div class="card">
         <h2>أنواع المحتوى</h2>
-        <p class="hint">اختار أنواع المحتوى مرة واحدة (صورة/ريل مواصفات/فيديو قصير... إلخ).</p>
+        <p class="hint">اختار أنواع المحتوى مرة واحدة (بوست صورة/ريل مواصفات/فيديو قصير… إلخ).</p>
 
         <button class="btn" type="button" id="openTypesBtn">اختيار أنواع المحتوى</button>
 
@@ -353,8 +274,20 @@
 
   <div class="toast" id="toast"></div>
 
+  <div class="modalBack" id="modalBack" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modalTop">
+        <b id="previewTitle">معاينة</b>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn" id="closePreviewBtn" type="button">إغلاق</button>
+        </div>
+      </div>
+      <div id="previewBody"></div>
+    </div>
+  </div>
+
 <script>
-  // mouse glow
+(() => {
   const glow = document.getElementById('glow');
   window.addEventListener('mousemove', (e)=>{
     const x = (e.clientX / window.innerWidth) * 100;
@@ -372,7 +305,7 @@
     window.__t = setTimeout(()=>toastEl.style.display='none', 2200);
   }
 
-  // period
+  // Period
   const yearSel = $('yearSel');
   const monthSel = $('monthSel');
   const publishDays = $('publishDays');
@@ -396,7 +329,7 @@
     monthSel.appendChild(opt);
   });
 
-  // selection engine
+  // Pickers
   const DEFAULT_PLATFORMS = ['Instagram','TikTok','Snapchat','Facebook','X (Twitter)'];
   const DEFAULT_TYPES = ['بوست صورة','ريل مواصفات','فيديو قصير'];
 
@@ -406,7 +339,7 @@
   let availableTypes = [...DEFAULT_TYPES];
   let selectedTypes = [];
 
-  function renderList(listEl, items, selectedArr, onToggle){
+  function renderList(listEl, items, onAdd){
     listEl.innerHTML = '';
     if(items.length===0){
       listEl.innerHTML = '<div style="padding:10px;color:rgba(43,32,30,.6)">مفيش عناصر متاحة</div>';
@@ -415,9 +348,9 @@
     items.forEach(name=>{
       const row = document.createElement('div');
       row.className = 'item';
-      row.innerHTML = `<span style="font-weight:800;color:var(--brown)">${name}</span>
+      row.innerHTML = `<span style="font-weight:900;color:var(--brown)">${name}</span>
                        <button class="btn" type="button" style="padding:8px 10px">إضافة</button>`;
-      row.querySelector('button').addEventListener('click', ()=>onToggle(name));
+      row.querySelector('button').addEventListener('click', ()=>onAdd(name));
       listEl.appendChild(row);
     });
   }
@@ -445,7 +378,7 @@
     renderAllPlatforms();
   }
   function renderAllPlatforms(){
-    renderList($('platformList'), availablePlatforms, selectedPlatforms, pickPlatform);
+    renderList($('platformList'), availablePlatforms, pickPlatform);
     renderChips($('platformChips'), selectedPlatforms, removePlatform);
   }
 
@@ -461,20 +394,18 @@
     renderAllTypes();
   }
   function renderAllTypes(){
-    renderList($('typeList'), availableTypes, selectedTypes, pickType);
+    renderList($('typeList'), availableTypes, pickType);
     renderChips($('typeChips'), selectedTypes, removeType);
   }
 
   renderAllPlatforms();
   renderAllTypes();
 
-  // picker open/close
   $('openPlatformsBtn').addEventListener('click', ()=> $('platformPicker').classList.add('open'));
   $('closePlatformsBtn').addEventListener('click', ()=> $('platformPicker').classList.remove('open'));
   $('openTypesBtn').addEventListener('click', ()=> $('typePicker').classList.add('open'));
   $('closeTypesBtn').addEventListener('click', ()=> $('typePicker').classList.remove('open'));
 
-  // add custom platform/type
   $('addPlatformBtn').addEventListener('click', ()=>{
     const v = ($('platformCustom').value||'').trim();
     if(!v) return;
@@ -483,6 +414,7 @@
     $('platformCustom').value = '';
     renderAllPlatforms();
   });
+
   $('addTypeBtn').addEventListener('click', ()=>{
     const v = ($('typeCustom').value||'').trim();
     if(!v) return;
@@ -524,15 +456,29 @@
     setTimeout(()=>URL.revokeObjectURL(url), 5000);
   }
 
-  async function downloadExcel(){
-    if(typeof XLSX === 'undefined'){
-      toast('XLSX مش محمّل');
-      return;
-    }
+  function requireBasics(){
     if(!publishDays.value.trim()){
       toast('اكتب عدد أيام النشر');
+      return false;
+    }
+    if(selectedPlatforms.length === 0){
+      toast('اختار منصة واحدة على الأقل');
+      return false;
+    }
+    if(selectedTypes.length === 0){
+      toast('اختار نوع محتوى واحد على الأقل');
+      return false;
+    }
+    return true;
+  }
+
+  async function downloadExcel(){
+    if(typeof XLSX === 'undefined'){
+      alert('مكتبة XLSX لم تُحمّل. جرّب تعطيل AdBlock ثم حدّث الصفحة.');
       return;
     }
+    if(!requireBasics()) return;
+
     const rows = buildPlanRows();
     const ws = XLSX.utils.json_to_sheet(rows, { header: ["اليوم","المنصات","نوع المحتوى","اسم السيارة"] });
     ws['!cols'] = [{wch:14},{wch:36},{wch:36},{wch:40}];
@@ -552,7 +498,7 @@ const path = require('path');
 const XLSX = require('xlsx');
 
 function safeName(s){
-  return String(s||'').trim().replace(/[\\\\/:*?\\"<>|]/g,'-').replace(/\\s+/g,' ').trim();
+  return String(s||'').trim().replace(/[\\/:*?\"<>|]/g,'-').replace(/\s+/g,' ').trim();
 }
 function ensureDir(p){ if(!fs.existsSync(p)) fs.mkdirSync(p,{recursive:true}); }
 function splitList(s){ return String(s||'').split(',').map(x=>x.trim()).filter(Boolean); }
@@ -596,9 +542,9 @@ for(const r of rows){
     continue;
   }
 
-  for(const p of (platforms.length ? platforms : ['Platform'])){
+  for(const p of platforms){
     const platBase = path.join(root, day, safeName(p));
-    for(const t of (types.length ? types : ['نوع المحتوى'])){
+    for(const t of types){
       const folders = typeFolders(t);
       for(const f of folders){
         const target = path.join(platBase, f, car || 'اسم السيارة');
@@ -612,9 +558,11 @@ console.log('Done ✅  Created folders in OUTPUT');`;
 
   async function downloadWinZip(){
     if(typeof JSZip === 'undefined'){
-      toast('JSZip مش محمّل');
+      alert('مكتبة JSZip لم تُحمّل. جرّب تعطيل AdBlock ثم حدّث الصفحة.');
       return;
     }
+    if(!requireBasics()) return;
+
     const zip = new JSZip();
     const packageJson = {
       name: "mzj-folder-builder",
@@ -624,7 +572,7 @@ console.log('Done ✅  Created folders in OUTPUT');`;
       scripts: { start: "node build-folders.js" },
       dependencies: { xlsx: "^0.18.5" }
     };
-    const readme = `تشغيل سكربت إنشاء الفولدرات (ويندوز)\r\n\r\n1) فك الضغط\r\n2) ضع ملف الشيت باسم plan.xlsx داخل نفس المجلد\r\n3) دبل كليك RUN.bat\r\n\r\nالمخرجات:\r\nOUTPUT\\YYYY-MM-DD\\Platform\\(صور/ستوري/ريل مواصفات/فيديو قصير)\\اسم السيارة\r\nويوم الجمعة:\r\nOUTPUT\\YYYY-MM-DD\\جمعة مباركة\\(صور/ستوري)\r\n`;
+    const readme = `تشغيل سكربت إنشاء الفولدرات (ويندوز)\r\n\r\n1) فك الضغط\r\n2) حمّل الشيت من الصفحة وسمّه plan.xlsx وحطه داخل نفس فولدر RUN.bat\r\n3) دبل كليك RUN.bat\r\n\r\nالمخرجات:\r\nOUTPUT\\YYYY-MM-DD\\Platform\\(صور/ستوري/ريل مواصفات/فيديو قصير)\\اسم السيارة\r\nويوم الجمعة:\r\nOUTPUT\\YYYY-MM-DD\\جمعة مباركة\\(صور/ستوري)\r\n`;
     const bat = `@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho Installing dependencies...\r\nnpm install\r\nif %errorlevel% neq 0 (\r\n  echo npm install failed.\r\n  pause\r\n  exit /b 1\r\n)\r\necho Running...\r\nnode build-folders.js\r\npause\r\n`;
 
     zip.file("package.json", JSON.stringify(packageJson, null, 2));
@@ -636,117 +584,33 @@ console.log('Done ✅  Created folders in OUTPUT');`;
     downloadBlob(blob, 'mzj-folder-builder-win.zip');
   }
 
-  
-  // ---------------- Firebase (optional) ----------------
-  const fbDot = $('fbDot');
-  const fbText = $('fbText');
-  const fbBtn = $('fbBtn');
-
-  function setFb(state, text){
-    if(state === 'ok'){
-      fbDot.style.background = '#2bb673';
-      fbDot.style.boxShadow = '0 0 0 3px rgba(43,182,115,.18)';
-    }else if(state === 'bad'){
-      fbDot.style.background = '#e44';
-      fbDot.style.boxShadow = '0 0 0 3px rgba(228,68,68,.18)';
-    }else{
-      fbDot.style.background = '#d1b3a5';
-      fbDot.style.boxShadow = '0 0 0 3px rgba(188,143,116,.18)';
-    }
-    fbText.textContent = text;
+  function openPreview(){
+    if(!requireBasics()) return;
+    const rows = buildPlanRows();
+    $('previewTitle').textContent = `معاينة — ${rows.length} يوم`;
+    const body = $('previewBody');
+    const thead = `<tr><th>اليوم</th><th>المنصات</th><th>نوع المحتوى</th><th>اسم السيارة</th></tr>`;
+    const trs = rows.map(r => `<tr>
+      <td>${r['اليوم']}</td>
+      <td>${r['المنصات']}</td>
+      <td>${r['نوع المحتوى']}</td>
+      <td>${r['اسم السيارة']}</td>
+    </tr>`).join('');
+    body.innerHTML = `<table>${thead}${trs}</table>`;
+    $('modalBack').classList.add('open');
   }
 
-  async function fbInit(){
-    setFb('mid','جاري الاتصال…');
-    try{
-      const fb = await window.__fbReady;
-      await fb.ping();
-      setFb('ok','متصل ✅');
-      fbBtn.disabled = false;
-      await fbLoad();
-    }catch(e){
-      console.error('Firebase error', e);
-      setFb('bad','غير متصل');
-      fbBtn.disabled = true;
-    }
-  }
+  $('closePreviewBtn').addEventListener('click', ()=> $('modalBack').classList.remove('open'));
+  $('modalBack').addEventListener('click', (e)=>{ if(e.target.id==='modalBack') $('modalBack').classList.remove('open'); });
 
-  async function fbLoad(){
-    try{
-      const fb = await window.__fbReady;
-      const snap = await fb.getDoc(fb.ref);
-      if(snap.exists()){
-        const d = snap.data() || {};
-
-        if(Array.isArray(d.platforms)){
-          selectedPlatforms = d.platforms.slice();
-          availablePlatforms = [...DEFAULT_PLATFORMS].filter(x=>!selectedPlatforms.includes(x));
-          renderAllPlatforms();
-        }
-        if(Array.isArray(d.contentTypes)){
-          selectedTypes = d.contentTypes.slice();
-          availableTypes = [...DEFAULT_TYPES].filter(x=>!selectedTypes.includes(x));
-          renderAllTypes();
-        }
-        if(typeof d.publishDays === 'number') publishDays.value = String(d.publishDays || '');
-        if(typeof d.year === 'number') yearSel.value = String(d.year);
-        if(typeof d.monthIndex0 === 'number') monthSel.value = String(d.monthIndex0);
-
-        toast('تم تحميل الإعدادات من Firebase');
-      }else{
-        await fbSave(true);
-      }
-    }catch(e){
-      console.error('fbLoad', e);
-    }
-  }
-
-  let __saveTimer = null;
-  function fbScheduleSave(){
-    clearTimeout(__saveTimer);
-    __saveTimer = setTimeout(()=>fbSave(false), 450);
-  }
-
-  async function fbSave(isSeed){
-    try{
-      const fb = await window.__fbReady;
-      const payload = {
-        platforms: selectedPlatforms,
-        contentTypes: selectedTypes,
-        publishDays: Math.max(0, Number((publishDays.value||'').trim()) || 0),
-        year: Number(yearSel.value),
-        monthIndex0: Number(monthSel.value),
-        updatedAt: fb.serverTimestamp()
-      };
-      if(isSeed) payload.createdAt = fb.serverTimestamp();
-      await fb.setDoc(fb.ref, payload, { merge: true });
-    }catch(e){
-      // silent
-    }
-  }
-
-  fbBtn?.addEventListener('click', fbLoad);
-
-  yearSel.addEventListener('change', fbScheduleSave);
-  monthSel.addEventListener('change', fbScheduleSave);
-  publishDays.addEventListener('input', fbScheduleSave);
-
-  // wrap selection mutators to auto-save
-  const __pickPlatform = pickPlatform;
-  pickPlatform = function(name){ __pickPlatform(name); fbScheduleSave(); };
-  const __removePlatform = removePlatform;
-  removePlatform = function(name){ __removePlatform(name); fbScheduleSave(); };
-
-  const __pickType = pickType;
-  pickType = function(name){ __pickType(name); fbScheduleSave(); };
-  const __removeType = removeType;
-  removeType = function(name){ __removeType(name); fbScheduleSave(); };
-
-  // init
-  fbInit();
-
-$('downloadExcelBtn').addEventListener('click', downloadExcel);
-  $('downloadWinZipBtn').addEventListener('click', downloadWinZip);
+  // IMPORTANT: bind after DOM is ready AND libs are loaded (defer => ok)
+  window.addEventListener('load', () => {
+    $('downloadExcelBtn').addEventListener('click', downloadExcel);
+    $('downloadWinZipBtn').addEventListener('click', downloadWinZip);
+    $('previewBtn').addEventListener('click', openPreview);
+    console.log('Buttons bound ✅');
+  });
+})();
 </script>
 </body>
 </html>
