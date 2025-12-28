@@ -2,1291 +2,518 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MZJ | مولّد خطة النشر</title>
-
-  <!-- Font -->
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MZJ — مولد خطة النشر</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
-  <!-- SheetJS (XLSX export) -->
+  <!-- Libraries -->
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- Firebase (compat for simplicity) -->
-  <script>
-    window.__fbScriptError = function(src){
-      try{
-        // Fallback: try the structured status labels if present
-        const t = document.querySelector('[data-fb-title]') || document.getElementById('fbTitle');
-        const s = document.querySelector('[data-fb-sub]') || document.getElementById('fbSub');
-        const dot = document.querySelector('[data-fb-dot]') || document.getElementById('fbDot');
-        if(t) t.textContent = 'Firebase';
-        if(s) s.textContent = 'فشل تحميل المكتبة — ' + src;
-        if(dot){ dot.classList.remove('ok'); dot.classList.add('bad'); }
-      }catch(e){}
-      console.error('[Firebase SDK load error]', src);
-    };
-  </script>
-
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <style>
     :root{
       --brown: rgb(62,36,32);
       --beige: rgb(188,143,116);
       --cream: #fff8ef;
-      --text: #1e1b18;
-      --muted: rgba(30,27,24,.65);
-      --border: rgba(62,36,32,.12);
-      --shadow: 0 10px 30px rgba(62,36,32,.12);
-      --shadow2: 0 8px 18px rgba(62,36,32,.10);
-      --radius: 16px;
-      --radius2: 22px;
+      --card: rgba(255,255,255,.55);
+      --line: rgba(62,36,32,.14);
+      --text: #2b201e;
+      --muted: rgba(43,32,30,.65);
+      --shadow: 0 18px 55px rgba(62,36,32,.12);
+      --r: 18px;
     }
-
-    *{ box-sizing: border-box; }
-    html, body { height: 100%; }
+    *{box-sizing:border-box}
     body{
       margin:0;
-      font-family: "Tajawal", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1100px 600px at 80% -10%, rgba(188,143,116,.22), transparent 55%),
-                  radial-gradient(900px 520px at 10% 0%, rgba(62,36,32,.10), transparent 58%),
-                  var(--cream);
-      color: var(--text);
-      overflow-x: hidden;
+      font-family: "Tajawal", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      background:
+        radial-gradient(900px 500px at 10% 10%, rgba(188,143,116,.22), transparent 60%),
+        radial-gradient(900px 500px at 90% 20%, rgba(62,36,32,.16), transparent 55%),
+        linear-gradient(180deg, #fff3e6, var(--cream));
+      color:var(--text);
+      min-height:100vh;
+      overflow-x:hidden;
     }
-
-    /* Mouse glow */
+    /* mouse glow */
     .glow{
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      opacity: .85;
-      transition: opacity .25s ease;
-      background: radial-gradient(380px 380px at var(--mx,50%) var(--my,50%),
-        rgba(188,143,116,.28),
-        rgba(188,143,116,.12) 35%,
-        rgba(188,143,116,.06) 55%,
-        transparent 72%);
-      mix-blend-mode: multiply;
-      filter: blur(0px);
+      position:fixed; inset:-200px;
+      pointer-events:none;
+      background: radial-gradient(320px 320px at var(--mx,50%) var(--my,50%), rgba(188,143,116,.22), transparent 60%);
+      filter: blur(1px);
+      z-index:0;
     }
-    @media (hover: none), (pointer: coarse){
-      .glow{ display:none; }
-    }
-
-    .page{
-      position: relative;
-      z-index: 1;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 22px 18px 110px;
-    }
-
-    header{
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 18px 16px;
-      border: 1px solid var(--border);
-      background: rgba(255,248,239,.7);
-      backdrop-filter: blur(10px);
-      border-radius: var(--radius2);
+    .wrap{position:relative; z-index:1; max-width:1100px; margin:26px auto; padding:0 18px 40px;}
+    .top{
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.45));
+      border:1px solid var(--line);
       box-shadow: var(--shadow);
+      border-radius: 22px;
+      padding:16px 18px;
+      margin-bottom:16px;
     }
     .brand{
-      display:flex;
-      align-items:center;
-      gap: 12px;
-      min-width: 280px;
+      display:flex; align-items:center; gap:12px;
+      min-width:0;
     }
     .logo{
-      width: 46px; height: 46px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(62,36,32,1), rgba(188,143,116,1));
-      box-shadow: 0 8px 18px rgba(62,36,32,.2);
-      position: relative;
-      overflow: hidden;
+      width:44px; height:44px; border-radius:16px;
+      background: radial-gradient(80% 80% at 25% 20%, rgba(255,255,255,.45), transparent 60%), linear-gradient(135deg, var(--beige), var(--brown));
+      box-shadow: 0 10px 22px rgba(62,36,32,.22);
     }
-    .logo:after{
-      content:"";
-      position:absolute; inset:-40%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 55%);
-      transform: rotate(20deg);
-    }
-    .brand h1{
-      margin:0;
-      font-size: 18px;
-      color: var(--brown);
-      letter-spacing: .2px;
-    }
-    .brand p{
-      margin: 4px 0 0;
-      font-size: 12.5px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .status-pill{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
+    .ttl{font-weight:800; color:var(--brown); font-size:18px; margin:0}
+    .sub{margin:2px 0 0; color:var(--muted); font-size:13px; line-height:1.4; max-width:560px}
+    .fb{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border:1px solid var(--line);
       background: rgba(255,255,255,.55);
-      box-shadow: var(--shadow2);
-      min-height: 44px;
-      white-space: nowrap;
+      border-radius: 16px;
+      min-width:220px;
+      justify-content:space-between;
     }
-    .dot{
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: #b7b7b7;
-      box-shadow: 0 0 0 6px rgba(183,183,183,.12);
-    }
-    .dot.ok{
-      background: #1fa971;
-      box-shadow: 0 0 0 6px rgba(31,169,113,.12);
-    }
-    .dot.bad{
-      background: #d84d4d;
-      box-shadow: 0 0 0 6px rgba(216,77,77,.12);
-    }
-    .status-pill strong{
-      font-size: 13px;
-      color: var(--brown);
-    }
-    .status-pill span{
-      font-size: 12px;
-      color: var(--muted);
-    }
-
+    .dot{width:10px; height:10px; border-radius:50%; background:#d1b3a5; box-shadow:0 0 0 3px rgba(188,143,116,.18)}
+    .fb b{font-weight:800; color:var(--brown)}
+    .fb small{color:var(--muted)}
     .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-top: 14px;
+      gap:16px;
     }
     @media (max-width: 900px){
-      .grid{ grid-template-columns: 1fr; }
-      .brand{ min-width: auto; }
-      header{ flex-direction: column; }
-      .status-pill{ width: 100%; justify-content: space-between; }
+      .grid{grid-template-columns:1fr}
+      .fb{min-width:unset; width:100%}
+      .top{flex-direction:column; align-items:stretch}
     }
-
     .card{
-      border: 1px solid var(--border);
-      background: rgba(255,248,239,.72);
-      backdrop-filter: blur(10px);
-      border-radius: var(--radius2);
+      background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.42));
+      border:1px solid var(--line);
+      border-radius: 22px;
       box-shadow: var(--shadow);
-      padding: 16px;
-      position: relative;
-      overflow: hidden;
-      transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+      padding:16px;
     }
-    .card:hover{
-      transform: translateY(-2px);
-      box-shadow: 0 14px 40px rgba(62,36,32,.14);
-      border-color: rgba(188,143,116,.35);
-    }
-    .card:before{
-      content:"";
-      position:absolute;
-      inset:-1px;
-      background: radial-gradient(520px 240px at 80% 0%, rgba(188,143,116,.20), transparent 60%);
-      pointer-events:none;
-    }
-
     .card h2{
       margin:0 0 10px;
-      font-size: 15px;
-      color: var(--brown);
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
+      font-size:16px;
+      font-weight:900;
+      color:var(--brown);
+      letter-spacing:.2px;
     }
-    .hint{
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.7;
-      margin: 0 0 12px;
-    }
-
-    .row{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    @media (max-width: 520px){
-      .row{ grid-template-columns: 1fr; }
-    }
-
-    label{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    select, input[type="text"]{
-      width: 100%;
-      padding: 12px 12px;
+    .hint{margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.6}
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end}
+    .field{flex:1; min-width:160px}
+    label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    select, input{
+      width:100%;
+      padding:12px 12px;
       border-radius: 14px;
-      border: 1px solid rgba(62,36,32,.18);
+      border:1px solid rgba(62,36,32,.18);
       background: rgba(255,255,255,.75);
-      outline: none;
       font-family: inherit;
-      font-size: 13px;
-      transition: border-color .15s ease, box-shadow .15s ease;
+      outline:none;
     }
-    select:focus, input[type="text"]:focus{
-      border-color: rgba(188,143,116,.9);
-      box-shadow: 0 0 0 4px rgba(188,143,116,.18);
-    }
-
-    .adder{
-      display:flex;
-      gap: 10px;
-      align-items: flex-end;
-      margin-top: 8px;
-    }
-    .adder .grow{ flex: 1; }
-
+    input:focus, select:focus{border-color: rgba(188,143,116,.85); box-shadow: 0 0 0 4px rgba(188,143,116,.18)}
     .btn{
-      appearance:none;
-      border: 1px solid rgba(62,36,32,.22);
-      background: rgba(255,255,255,.7);
-      color: var(--brown);
-      padding: 12px 14px;
-      border-radius: 14px;
       cursor:pointer;
+      padding:12px 14px;
+      border-radius: 14px;
+      border:1px solid rgba(62,36,32,.18);
+      background: linear-gradient(135deg, rgba(255,255,255,.75), rgba(255,255,255,.55));
       font-family: inherit;
-      font-weight: 600;
-      font-size: 13px;
-      transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
-      box-shadow: 0 8px 18px rgba(62,36,32,.10);
-      user-select:none;
+      font-weight:800;
+      color:var(--brown);
+      box-shadow: 0 10px 26px rgba(62,36,32,.10);
+      transition: transform .12s ease, box-shadow .12s ease;
     }
-    .btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(188,143,116,.55);
-      box-shadow: 0 12px 24px rgba(62,36,32,.14);
-    }
-    .btn:active{ transform: translateY(0px); }
+    .btn:hover{transform: translateY(-1px); box-shadow: 0 14px 30px rgba(62,36,32,.14)}
     .btn.primary{
-      background: linear-gradient(135deg, rgba(62,36,32,1), rgba(188,143,116,1));
-      border-color: rgba(62,36,32,.1);
-      color: #fff;
+      border-color: rgba(188,143,116,.55);
+      background: linear-gradient(135deg, rgba(188,143,116,.30), rgba(255,255,255,.65));
     }
-    .btn.ghost{
+    .picker{
+      display:none;
+      margin-top:12px;
+      border:1px solid rgba(62,36,32,.16);
       background: rgba(255,255,255,.55);
-      box-shadow: none;
+      border-radius: 18px;
+      padding:12px;
     }
-    .btn:disabled{
-      opacity: .55;
-      cursor: not-allowed;
-      transform:none;
-      box-shadow: none;
+    .picker.open{display:block}
+    .pickerHead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
+    .pickerHead b{color:var(--brown)}
+    .list{
+      max-height: 240px;
+      overflow:auto;
+      padding:6px;
+      border-radius: 14px;
+      border:1px dashed rgba(62,36,32,.18);
+      background: rgba(255,255,255,.55);
     }
-
-    .chips{
-      display:flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
+    .item{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.65);
+      border:1px solid rgba(62,36,32,.10);
+      margin-bottom:8px;
     }
+    .chipWrap{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
     .chip{
-      display:flex;
-      align-items:center;
-      gap: 8px;
-      padding: 8px 10px;
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px;
       border-radius: 999px;
-      background: rgba(62,36,32,.06);
-      border: 1px solid rgba(62,36,32,.12);
-      color: var(--brown);
-      font-size: 12.5px;
-      box-shadow: 0 8px 14px rgba(62,36,32,.08);
-      transition: border-color .14s ease, background .14s ease;
-    }
-    .chip:hover{
-      border-color: rgba(188,143,116,.45);
-      background: rgba(188,143,116,.10);
+      background: rgba(188,143,116,.20);
+      border:1px solid rgba(188,143,116,.35);
+      color:var(--brown);
+      font-weight:800;
+      font-size:13px;
     }
     .chip button{
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      color: rgba(62,36,32,.8);
-      font-size: 14px;
-      line-height: 1;
-      padding: 0 2px;
+      border:none; background:transparent; cursor:pointer;
+      color:rgba(62,36,32,.75); font-weight:900; font-size:14px;
     }
-
-    /* Fixed action bar */
-    .actionbar{
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      z-index: 10;
-      padding: 14px 14px;
-      background: rgba(255,248,239,.86);
-      backdrop-filter: blur(12px);
-      border-top: 1px solid rgba(62,36,32,.12);
-      box-shadow: 0 -16px 40px rgba(62,36,32,.10);
+    .mini{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+      margin-top:10px;
     }
-    .actionbar .inner{
-      max-width: 1100px;
-      margin: 0 auto;
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-    }
-    .left-actions{ display:flex; gap: 10px; flex-wrap: wrap; }
-    .meta{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .sep{ opacity:.5; }
-
-    /* Modal */
-    .modal-backdrop{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.35);
+    .mini .field{min-width:220px}
+    .toast{
+      position: fixed; left:18px; bottom:18px;
+      padding:12px 14px;
+      border-radius: 14px;
+      border:1px solid rgba(62,36,32,.16);
+      background: rgba(255,255,255,.85);
+      box-shadow: 0 16px 40px rgba(62,36,32,.14);
+      color:var(--brown);
+      font-weight:800;
       display:none;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-      z-index: 30;
+      z-index:5;
     }
-    .modal{
-      width: min(760px, 100%);
-      border-radius: 18px;
-      border: 1px solid rgba(62,36,32,.12);
-      background: rgba(255,248,239,.92);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 24px 70px rgba(0,0,0,.28);
-      overflow: hidden;
-    }
-    .modal header{
-      border-radius: 0;
-      border: none;
-      box-shadow: none;
-      background: transparent;
-      padding: 14px 16px;
-    }
-    .modal-body{
-      padding: 0 16px 16px;
-      color: var(--text);
-      font-size: 13.5px;
-      line-height: 1.9;
-    }
-    .kvs{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 8px;
-    }
-    @media (max-width: 640px){
-      .kvs{ grid-template-columns: 1fr; }
-    }
-    .kv{
-      border: 1px solid rgba(62,36,32,.12);
-      border-radius: 14px;
-      background: rgba(255,255,255,.65);
-      padding: 10px 12px;
-    }
-    .kv b{ color: var(--brown); }
-    .kv small{ color: var(--muted); display:block; margin-top: 4px; }
-  
-    /* Picker panels (stay-open multi-select) */
-    .picker{
-      margin-top: 12px;
-      border: 1px solid rgba(62,36,32,.14);
-      border-radius: 18px;
-      background: rgba(255,255,255,.62);
-      box-shadow: 0 14px 34px rgba(62,36,32,.12);
-      overflow: hidden;
-      display: none;
-    }
-    .picker.open{ display:block; }
-    .picker-head{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 12px 12px;
-      border-bottom: 1px solid rgba(62,36,32,.10);
-      background: rgba(255,248,239,.65);
-    }
-    .picker-body{ padding: 12px; }
-    .picker-grid{
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap: 12px;
-    }
-    @media (max-width: 900px){
-      .picker-grid{ grid-template-columns: 1fr; }
-    }
-    .picker-col{
-      border: 1px solid rgba(62,36,32,.10);
-      border-radius: 16px;
-      background: rgba(255,248,239,.55);
-      padding: 12px;
-    }
-    .picker-title{
-      font-weight: 700;
-      color: var(--brown);
-      font-size: 13px;
-      margin-bottom: 10px;
-    }
-    .picker-list{
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 260px;
-      overflow:auto;
-      padding-right: 4px;
-    }
-    .pick-item{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 10px;
-      border-radius: 14px;
-      border: 1px solid rgba(62,36,32,.10);
-      background: rgba(255,255,255,.62);
-      cursor: pointer;
-      user-select: none;
-      transition: transform .12s ease, border-color .12s ease, background .12s ease;
-    }
-    .pick-item:hover{
-      transform: translateY(-1px);
-      border-color: rgba(188,143,116,.45);
-      background: rgba(188,143,116,.10);
-    }
-    .pick-item .left{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      color: var(--brown);
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .check{
-      width: 18px; height: 18px;
-      border-radius: 6px;
-      border: 2px solid rgba(62,36,32,.35);
-      background: transparent;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .check.on{
-      border-color: rgba(188,143,116,1);
-      background: rgba(188,143,116,.22);
-    }
-    .check.on:after{
-      content:"✓";
-      font-size: 12px;
-      color: var(--brown);
-      transform: translateY(-1px);
-    }
-
   </style>
+
+  <!-- Firebase (ESM) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCUniCf_A3fyZHbUN0REKhrFwhjYbojWIc",
+      authDomain: "mzj-content-planner.firebaseapp.com",
+      projectId: "mzj-content-planner",
+      storageBucket: "mzj-content-planner.firebasestorage.app",
+      messagingSenderId: "702048592652",
+      appId: "1:702048592652:web:9b3377dacbe4c98b339f29",
+      measurementId: "G-J77RGXSL4R"
+    };
+
+    try{
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const ref = doc(db, 'settings', 'content-planner');
+
+      async function ping(){
+        await getDoc(ref);
+        await setDoc(ref, { lastPing: serverTimestamp() }, { merge: true });
+        return true;
+      }
+
+      window.__fbReady = Promise.resolve({ db, ref, getDoc, setDoc, serverTimestamp, ping });
+      console.log('Firebase ready ✅');
+    }catch(e){
+      window.__fbReady = Promise.reject(e);
+      console.error('Firebase init failed ❌', e);
+    }
+  </script>
+
 </head>
+
 <body>
   <div class="glow" id="glow"></div>
 
-  <div class="page">
-    <header>
+  <div class="wrap">
+    <div class="top">
       <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <div>
-          <h1>مولّد خطة النشر — MZJ</h1>
-          <p>اختار الشهر والسنة والمنصات وأنواع المحتوى، وبعدها حمّل الشيت والاسكربت. <b>الجمعة تلقائيًا “جمعة مباركة”.</b></p>
+        <div class="logo"></div>
+        <div style="min-width:0">
+          <p class="ttl">MZJ — مولد خطة النشر</p>
+          <p class="sub">اختار الشهر والسنة وعدد أيام النشر والمنصات وأنواع المحتوى. بعدين حمّل الشيت والسكربت (ويندوز) لإنشاء الفولدرات تلقائيًا.</p>
         </div>
       </div>
 
-      <div class="status-pill" title="حالة الاتصال بـ Firestore">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="dot" id="fbDot"></div>
+      <div class="fb" title="الاتصال بـ Firestore (اختياري)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="dot" id="fbDot"></span>
           <div>
-            <strong id="fbTitle">Firebase</strong><br>
-            <span id="fbSub">جاري الاتصال…</span>
+            <b>Firebase</b><br>
+            <small id="fbText">جاري الاتصال…</small>
           </div>
         </div>
-        <button class="btn ghost" id="resetDefaultsBtn" type="button" title="إرجاع القيم الافتراضية المحفوظة من فايربيز">تحديث من Firebase</button>
+        <button class="btn" type="button" id="fbBtn">تحديث من Firebase</button>
       </div>
-    </header>
+    </div>
 
-    <section class="grid">
-      <!-- Period -->
+    <div class="grid">
       <div class="card">
-        <h2>إعدادات الفترة <span style="font-size:12px;color:var(--muted);font-weight:600;">(إلزامي)</span></h2>
-        <p class="hint">اختار الشهر والسنة. هيتولّد شيت فيه (اليوم/المنصة/نوع المحتوى) وأنت تكتب فقط <b>اسم السيارة</b>.</p>
+        <h2>إعدادات الفترة</h2>
+        <p class="hint">اختار الشهر والسنة وعدد أيام النشر. يوم الجمعة يولّد تلقائيًا "جمعة مباركة".</p>
+
         <div class="row">
-          <div>
-            <label for="yearSel">السنة</label>
+          <div class="field">
+            <label>السنة</label>
             <select id="yearSel"></select>
           </div>
-          <div>
-            <label for="monthSel">الشهر</label>
+          <div class="field">
+            <label>الشهر</label>
             <select id="monthSel"></select>
           </div>
-        </div>
-        <div class="row" style="margin-top:10px;">
-          <div>
-            <label for="publishDays">عدد أيام النشر</label>
-            <input id="publishDays" type="text" inputmode="numeric" placeholder="مثال: 13" />
-          </div>
-          <div>
-            <label>ملاحظة</label>
-            <div style="padding:12px;border:1px dashed rgba(62,36,32,.18);border-radius:14px;background:rgba(255,255,255,.55);color:var(--muted);font-size:12.5px;line-height:1.7;">
-              الشيت هيتولد <b>لأول N يوم</b> من الشهر (حسب العدد). يوم الجمعة يتولد تلقائيًا كـ <b>جمعة مباركة</b>.
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Platforms -->
-      <div class="card">
-        <h2>المنصات <span style="font-size:12px;color:var(--muted);font-weight:600;">(مرنة)</span></h2>
-        <p class="hint">تضغط مرة واحدة على “اختيار المنصات” وتعلّم على كل المنصات بدون ما تقفل القائمة. كل اختيار يطلع Chip ويتشال من القائمة.</p>
-
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="btn" id="openPlatformsBtn" type="button">اختيار المنصات</button>
-          <div style="color:var(--muted);font-size:12px;">(تتحفظ على Firebase تلقائيًا)</div>
-        </div>
-
-        <div class="chips" id="platformChips"></div>
-
-        <div class="picker" id="platformPicker" aria-hidden="true">
-          <div class="picker-head">
-            <div>
-              <b style="color:var(--brown);">اختيار المنصات</b>
-              <div style="color:var(--muted);font-size:12px;margin-top:2px;">علّم على اللي تحتاجه — والقائمة تفضل مفتوحة</div>
-            </div>
-            <button class="btn ghost" id="closePlatformsBtn" type="button">تم</button>
-          </div>
-
-          <div class="picker-body">
-            <div class="picker-grid">
-              <div class="picker-col">
-                <div class="picker-title">المنصات المتاحة</div>
-                <div class="picker-list" id="platformList"></div>
-              </div>
-
-              <div class="picker-col">
-                <div class="picker-title">إضافة منصة مخصصة</div>
-                <div style="display:flex;gap:10px;align-items:center;">
-                  <input id="platformCustom" type="text" placeholder="مثال: Threads" />
-                  <button class="btn" id="addPlatformCustomBtn" type="button">إضافة</button>
-                </div>
-                <div style="margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7;">
-                  المنصة المخصصة هتظهر عندك كـ Chip مباشرة.
-                </div>
-              </div>
-            </div>
+          <div class="field">
+            <label>عدد أيام النشر</label>
+            <input id="publishDays" inputmode="numeric" placeholder="مثال: 13" />
           </div>
         </div>
       </div>
 
-      <!-- Content Types -->
-      <div class="card">
-        <h2>أنواع المحتوى <span style="font-size:12px;color:var(--muted);font-weight:600;">(مرنة)</span></h2>
-        <p class="hint">تضغط مرة واحدة على “اختيار أنواع المحتوى” وتعلّم على كل الأنواع. كل اختيار يطلع Chip ويتشال من القائمة.</p>
-
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="btn" id="openTypesBtn" type="button">اختيار أنواع المحتوى</button>
-          <div style="color:var(--muted);font-size:12px;">(تتحفظ على Firebase تلقائيًا)</div>
-        </div>
-
-        <div class="chips" id="typeChips"></div>
-
-        <div class="picker" id="typePicker" aria-hidden="true">
-          <div class="picker-head">
-            <div>
-              <b style="color:var(--brown);">اختيار أنواع المحتوى</b>
-              <div style="color:var(--muted);font-size:12px;margin-top:2px;">علّم على اللي تحتاجه — والقائمة تفضل مفتوحة</div>
-            </div>
-            <button class="btn ghost" id="closeTypesBtn" type="button">تم</button>
-          </div>
-
-          <div class="picker-body">
-            <div class="picker-grid">
-              <div class="picker-col">
-                <div class="picker-title">الأنواع المتاحة</div>
-                <div class="picker-list" id="typeList"></div>
-              </div>
-
-              <div class="picker-col">
-                <div class="picker-title">إضافة نوع مخصص</div>
-                <div style="display:flex;gap:10px;align-items:center;">
-                  <input id="typeCustom" type="text" placeholder="مثال: بوست تثبيت" />
-                  <button class="btn" id="addTypeCustomBtn" type="button">إضافة</button>
-                </div>
-                <div style="margin-top:10px;color:var(--muted);font-size:12px;line-height:1.7;">
-                  النوع المخصص هيتضاف كـ Chip مباشرة.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Output -->
       <div class="card">
         <h2>مخرجات التحميل</h2>
-        <p class="hint">
-          ✅ <b>تحميل على الجهاز فقط</b><br>
-          ✅ المنصات وأنواع المحتوى تتحفظ على Firebase<br>
-          ✅ يوم الجمعة تلقائيًا: <b>جمعة مباركة</b>
-        </p>
-
+        <p class="hint">الشيت فيه (اليوم/المنصات/نوع المحتوى/اسم السيارة). السكربت ويندوز يقرأ الشيت ويعمل الفولدرات على جهازك.</p>
         <div class="row">
-          <div>
-            <label for="filePrefix">بادئة اسم الملف (اختياري)</label>
-            <input id="filePrefix" type="text" placeholder="مثال: MZJ-Content-Plan" />
-          </div>
-          <div>
-            <label>ملاحظة</label>
-            <div style="padding:12px;border:1px dashed rgba(62,36,32,.18);border-radius:14px;background:rgba(255,255,255,.55);color:var(--muted);font-size:12.5px;line-height:1.7;">
-              الشيت هيتولد جاهز. أنت تكتب فقط <b>اسم السيارة</b> في العمود المخصص لكل صف.
-            </div>
+          <button class="btn primary" id="downloadExcelBtn" type="button">تحميل الشيت (Excel)</button>
+          <button class="btn" id="downloadWinZipBtn" type="button">تحميل سكربت ويندوز (ZIP)</button>
+        </div>
+        <div class="mini">
+          <div class="field">
+            <label>ملاحظة التشغيل</label>
+            <input disabled value="فك الـ ZIP → سمّي الشيت plan.xlsx → شغّل RUN.bat → المخرجات داخل OUTPUT" />
           </div>
         </div>
       </div>
-    </section>
-  </div>
 
-  <!-- Fixed action bar -->
-  <div class="actionbar">
-    <div class="inner">
-      <div class="left-actions">
-        <button class="btn primary" id="downloadSheetBtn" type="button" disabled>تحميل الشيت</button>
-        <button class="btn" id="downloadScriptBtn" type="button" disabled>تحميل الاسكربت</button>
-        <button class="btn ghost" id="previewBtn" type="button">معاينة</button>
+      <div class="card">
+        <h2>المنصات</h2>
+        <p class="hint">اختار المنصات مرة واحدة، وكل منصة تختارها تتحول Chip وتختفي من القائمة.</p>
+
+        <button class="btn" type="button" id="openPlatformsBtn">اختيار المنصات</button>
+
+        <div class="picker" id="platformPicker">
+          <div class="pickerHead">
+            <b>اختيار المنصات</b>
+            <button class="btn" type="button" id="closePlatformsBtn">تم</button>
+          </div>
+
+          <div class="mini">
+            <div class="field">
+              <label>إضافة منصة مخصصة</label>
+              <input id="platformCustom" placeholder="مثال: Threads" />
+            </div>
+            <button class="btn" type="button" id="addPlatformBtn">إضافة</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <label>المنصات المتاحة</label>
+            <div class="list" id="platformList"></div>
+          </div>
+        </div>
+
+        <div class="chipWrap" id="platformChips"></div>
       </div>
-      <div class="meta">
-        <span id="rowsHint">—</span>
-        <span class="sep">•</span>
-        <span>الجمعة: جمعة مباركة تلقائيًا</span>
+
+      <div class="card">
+        <h2>أنواع المحتوى</h2>
+        <p class="hint">اختار أنواع المحتوى مرة واحدة (صورة/ريل مواصفات/فيديو قصير... إلخ).</p>
+
+        <button class="btn" type="button" id="openTypesBtn">اختيار أنواع المحتوى</button>
+
+        <div class="picker" id="typePicker">
+          <div class="pickerHead">
+            <b>اختيار أنواع المحتوى</b>
+            <button class="btn" type="button" id="closeTypesBtn">تم</button>
+          </div>
+
+          <div class="mini">
+            <div class="field">
+              <label>إضافة نوع مخصص</label>
+              <input id="typeCustom" placeholder="مثال: لايف" />
+            </div>
+            <button class="btn" type="button" id="addTypeBtn">إضافة</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <label>الأنواع المتاحة</label>
+            <div class="list" id="typeList"></div>
+          </div>
+        </div>
+
+        <div class="chipWrap" id="typeChips"></div>
       </div>
     </div>
   </div>
 
-  <!-- Preview modal -->
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true">
-    <div class="modal">
-      <header>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="logo" style="width:34px;height:34px;border-radius:12px;"></div>
-            <div>
-              <strong style="color:var(--brown);font-size:14px;">معاينة الإعدادات</strong><br>
-              <span style="color:var(--muted);font-size:12px;">قبل ما تحمّل الشيت والاسكربت</span>
-            </div>
-          </div>
-          <button class="btn ghost" id="closeModalBtn" type="button">إغلاق</button>
-        </div>
-      </header>
-      <div class="modal-body" id="modalBody"></div>
-    </div>
-  </div>
+  <div class="toast" id="toast"></div>
 
 <script>
-(() => {
-  /* ---------------------------
-     Mouse glow tracking
-  ----------------------------*/
+  // mouse glow
   const glow = document.getElementById('glow');
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener('mousemove', (e)=>{
     const x = (e.clientX / window.innerWidth) * 100;
     const y = (e.clientY / window.innerHeight) * 100;
-    document.documentElement.style.setProperty('--mx', x + '%');
-    document.documentElement.style.setProperty('--my', y + '%');
-  }, { passive: true });
+    glow.style.setProperty('--mx', x + '%');
+    glow.style.setProperty('--my', y + '%');
+  });
 
-  /* ---------------------------
-     Helpers
-  ----------------------------*/
-  const $ = (id) => document.getElementById(id);
-  const uniq = (arr) => Array.from(new Set(arr.map(s => (s||'').trim()).filter(Boolean)));
-  const isFriday = (d) => d.getDay() === 5; // 0=Sun ... 5=Fri (JS)
-  const monthNamesAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-
-  function daysInMonth(year, monthIndex0){
-    return new Date(year, monthIndex0 + 1, 0).getDate();
+  const $ = (id)=>document.getElementById(id);
+  const toastEl = $('toast');
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.style.display = 'block';
+    clearTimeout(window.__t);
+    window.__t = setTimeout(()=>toastEl.style.display='none', 2200);
   }
 
-  function fmtDayLabel(year, monthIndex0, day){
-    // e.g. 2026-01-03
-    const mm = String(monthIndex0+1).padStart(2,'0');
-    const dd = String(day).padStart(2,'0');
-    return `${year}-${mm}-${dd}`;
-  }
-
-  function ensureReadyState(){
-    const year = $('yearSel').value;
-    const month = $('monthSel').value;
-    const platforms = state.platforms;
-    const types = state.types;
-    const publishDays = state.publishDays;
-
-    const ok = !!year && !!month && platforms.length > 0 && types.length > 0 && Number.isFinite(publishDays) && publishDays > 0;
-    $('downloadSheetBtn').disabled = !ok;
-    $('downloadScriptBtn').disabled = !ok;
-
-    // Estimate rows to be generated
-    if(!year || !month){
-      $('rowsHint').textContent = '—';
-      return;
-    }
-    const y = Number(year);
-    const mi = Number(month);
-    const dim = daysInMonth(y, mi);
-    let rows = 0;
-    for(let d=1; d<=dim; d++){
-      const date = new Date(y, mi, d);
-      if(isFriday(date)){
-        rows += platforms.length; // جمعة مباركة: row per platform
-      }else{
-        rows += platforms.length * types.length;
-      }
-    }
-    $('rowsHint').textContent = `عدد الصفوف المتوقّع في الشيت: ${rows.toLocaleString('ar-SA')}`;
-  }
-
-  function debounce(fn, ms=450){
-    let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
-  }
-
-  /* ---------------------------
-     State
-  ----------------------------*/
-  const state = {
-    platforms: [],
-    types: [],
-    year: null,
-    monthIndex0: null,
-    filePrefix: '',
-    publishDays: null,
-  };
-
-  /* ---------------------------
-     UI init: year/month
-  ----------------------------*/
-  const now = new Date();
-  const currentYear = now.getFullYear();
+  // period
   const yearSel = $('yearSel');
   const monthSel = $('monthSel');
+  const publishDays = $('publishDays');
 
-  const startYear = currentYear - 1;
-  const endYear = currentYear + 6;
+  const monthsAr = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const now = new Date();
+  const yNow = now.getFullYear();
 
-  for(let y = startYear; y <= endYear; y++){
+  for(let y=yNow-1; y<=yNow+3; y++){
     const opt = document.createElement('option');
     opt.value = String(y);
     opt.textContent = String(y);
+    if(y===yNow) opt.selected = true;
     yearSel.appendChild(opt);
   }
-
-  monthNamesAr.forEach((name, i) => {
+  monthsAr.forEach((m, i)=>{
     const opt = document.createElement('option');
-    opt.value = String(i); // monthIndex0
-    opt.textContent = name;
+    opt.value = String(i);
+    opt.textContent = m;
+    if(i===now.getMonth()) opt.selected = true;
     monthSel.appendChild(opt);
   });
 
-  // Default to current
-  yearSel.value = String(currentYear);
-  monthSel.value = String(now.getMonth());
+  // selection engine
+  const DEFAULT_PLATFORMS = ['Instagram','TikTok','Snapchat','Facebook','X (Twitter)'];
+  const DEFAULT_TYPES = ['بوست صورة','ريل مواصفات','فيديو قصير'];
 
-  yearSel.addEventListener('change', () => {
-    state.year = Number(yearSel.value);
-    saveSettingsDebounced();
-    ensureReadyState();
-  });
-  monthSel.addEventListener('change', () => {
-    state.monthIndex0 = Number(monthSel.value);
-    saveSettingsDebounced();
-    ensureReadyState();
-  });
+  let availablePlatforms = [...DEFAULT_PLATFORMS];
+  let selectedPlatforms = [];
 
-  $('filePrefix').addEventListener('input', (e) => {
-    state.filePrefix = e.target.value || '';
-  });
+  let availableTypes = [...DEFAULT_TYPES];
+  let selectedTypes = [];
 
-  $('publishDays').addEventListener('input', (e) => {
-    const v = String(e.target.value || '').replace(/[^\d]/g,'');
-    e.target.value = v;
-    state.publishDays = v ? Number(v) : null;
-    saveSettingsDebounced();
-    ensureReadyState();
-  });
-
-  /* ---------------------------
-     Chips rendering
-  ----------------------------*/
-  function renderChips(){
-    const pc = $('platformChips');
-    const tc = $('typeChips');
-    pc.innerHTML = '';
-    tc.innerHTML = '';
-
-    state.platforms.forEach((p) => {
-      const el = document.createElement('div');
-      el.className = 'chip';
-      el.innerHTML = `<span>${escapeHtml(p)}</span><button type="button" aria-label="حذف">×</button>`;
-      el.querySelector('button').addEventListener('click', () => {
-        state.platforms = state.platforms.filter(x => x !== p);
-        renderChips();
-        renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
-        saveSettingsDebounced();
-        ensureReadyState();
-      });
-      pc.appendChild(el);
-    });
-
-    state.types.forEach((t) => {
-      const el = document.createElement('div');
-      el.className = 'chip';
-      el.innerHTML = `<span>${escapeHtml(t)}</span><button type="button" aria-label="حذف">×</button>`;
-      el.querySelector('button').addEventListener('click', () => {
-        state.types = state.types.filter(x => x !== t);
-        renderChips();
-        renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
-        saveSettingsDebounced();
-        ensureReadyState();
-      });
-      tc.appendChild(el);
-    });
-  }
-
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, (c) => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-    }[c]));
-  }
-
-  
-  /* ---------------------------
-     Picker Lists (stay-open multi-select)
-  ----------------------------*/
-  const PLATFORM_DEFAULTS = ["Instagram","TikTok","Snapchat","Facebook","X (Twitter)","YouTube Shorts","LinkedIn"];
-  const TYPE_DEFAULTS = ["صورة","ستوري","ريل مواصفات","فيديو قصير"];
-
-  function renderPickerList(listEl, defaults, selected, onAdd){
+  function renderList(listEl, items, selectedArr, onToggle){
     listEl.innerHTML = '';
-    const available = defaults.filter(x => !selected.includes(x));
-    if(!available.length){
-      const empty = document.createElement('div');
-      empty.style.color = 'rgba(30,27,24,.55)';
-      empty.style.fontSize = '12.5px';
-      empty.style.padding = '6px 2px';
-      empty.textContent = 'تم اختيار كل العناصر ✅';
-      listEl.appendChild(empty);
+    if(items.length===0){
+      listEl.innerHTML = '<div style="padding:10px;color:rgba(43,32,30,.6)">مفيش عناصر متاحة</div>';
       return;
     }
-    available.forEach((name) => {
+    items.forEach(name=>{
       const row = document.createElement('div');
-      row.className = 'pick-item';
-      row.innerHTML = `
-        <div class="left">
-          <span class="check"></span>
-          <span>${escapeHtml(name)}</span>
-        </div>
-        <span style="color:rgba(30,27,24,.55);font-size:12px;">إضافة</span>
-      `;
-      row.addEventListener('click', () => onAdd(name));
+      row.className = 'item';
+      row.innerHTML = `<span style="font-weight:800;color:var(--brown)">${name}</span>
+                       <button class="btn" type="button" style="padding:8px 10px">إضافة</button>`;
+      row.querySelector('button').addEventListener('click', ()=>onToggle(name));
       listEl.appendChild(row);
     });
   }
 
-  function openPicker(pickerEl){
-    pickerEl.classList.add('open');
-    pickerEl.setAttribute('aria-hidden','false');
-  }
-  function closePicker(pickerEl){
-    pickerEl.classList.remove('open');
-    pickerEl.setAttribute('aria-hidden','true');
-  }
-
-function addPlatform(name){
-    const n = (name||'').trim();
-    if(!n) return;
-    if(state.platforms.includes(n)) return;
-    state.platforms = uniq([...state.platforms, n]);
-    renderChips();
-    renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
-    saveSettingsDebounced();
-    ensureReadyState();
+  function renderChips(chipsEl, selectedArr, onRemove){
+    chipsEl.innerHTML = '';
+    selectedArr.forEach(name=>{
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.innerHTML = `<span>${name}</span><button type="button" aria-label="remove">×</button>`;
+      c.querySelector('button').addEventListener('click', ()=>onRemove(name));
+      chipsEl.appendChild(c);
+    });
   }
 
-  function addType(name){
-    const n = (name||'').trim();
-    if(!n) return;
-    if(state.types.includes(n)) return;
-    state.types = uniq([...state.types, n]);
-    renderChips();
-    renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
-    saveSettingsDebounced();
-    ensureReadyState();
+  function pickPlatform(name){
+    selectedPlatforms.push(name);
+    availablePlatforms = availablePlatforms.filter(x=>x!==name);
+    renderAllPlatforms();
+  }
+  function removePlatform(name){
+    selectedPlatforms = selectedPlatforms.filter(x=>x!==name);
+    if(!availablePlatforms.includes(name)) availablePlatforms.push(name);
+    availablePlatforms.sort((a,b)=>a.localeCompare(b));
+    renderAllPlatforms();
+  }
+  function renderAllPlatforms(){
+    renderList($('platformList'), availablePlatforms, selectedPlatforms, pickPlatform);
+    renderChips($('platformChips'), selectedPlatforms, removePlatform);
   }
 
-  /* ---------------------------
-     Platform adder logic
-  ----------------------------*/
-  $('platformSel').addEventListener('change', () => {
-    const v = $('platformSel').value;
-    const wrap = $('platformCustomWrap');
-    if(v === '__custom__'){
-      wrap.style.display = 'block';
-      $('platformCustom').focus();
-    }else{
-      wrap.style.display = 'none';
-      $('platformCustom').value = '';
-      addPlatform(v);
-      $('platformSel').selectedIndex = 0;
-    }
-  });
-  $('platformCustom').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      addPlatform($('platformCustom').value);
-      $('platformSel').selectedIndex = 0;
-      $('platformCustomWrap').style.display = 'none';
-      $('platformCustom').value = '';
-    }
-  });
+  function pickType(name){
+    selectedTypes.push(name);
+    availableTypes = availableTypes.filter(x=>x!==name);
+    renderAllTypes();
+  }
+  function removeType(name){
+    selectedTypes = selectedTypes.filter(x=>x!==name);
+    if(!availableTypes.includes(name)) availableTypes.push(name);
+    availableTypes.sort((a,b)=>a.localeCompare(b));
+    renderAllTypes();
+  }
+  function renderAllTypes(){
+    renderList($('typeList'), availableTypes, selectedTypes, pickType);
+    renderChips($('typeChips'), selectedTypes, removeType);
+  }
 
-  $('addPlatformBtn').addEventListener('click', () => {
-    const v = $('platformSel').value;
-    if(v === '__custom__'){
-      addPlatform($('platformCustom').value);
-    }else{
-      addPlatform(v);
-    }
-    // reset
-    $('platformSel').selectedIndex = 0;
-    $('platformCustomWrap').style.display = 'none';
+  renderAllPlatforms();
+  renderAllTypes();
+
+  // picker open/close
+  $('openPlatformsBtn').addEventListener('click', ()=> $('platformPicker').classList.add('open'));
+  $('closePlatformsBtn').addEventListener('click', ()=> $('platformPicker').classList.remove('open'));
+  $('openTypesBtn').addEventListener('click', ()=> $('typePicker').classList.add('open'));
+  $('closeTypesBtn').addEventListener('click', ()=> $('typePicker').classList.remove('open'));
+
+  // add custom platform/type
+  $('addPlatformBtn').addEventListener('click', ()=>{
+    const v = ($('platformCustom').value||'').trim();
+    if(!v) return;
+    if(selectedPlatforms.includes(v) || availablePlatforms.includes(v)) { toast('الموجود بالفعل'); return; }
+    availablePlatforms.unshift(v);
     $('platformCustom').value = '';
+    renderAllPlatforms();
   });
-
-  /* ---------------------------
-     Type adder logic
-  ----------------------------*/
-  $('typeSel').addEventListener('change', () => {
-    const v = $('typeSel').value;
-    const wrap = $('typeCustomWrap');
-    if(v === '__custom__'){
-      wrap.style.display = 'block';
-      $('typeCustom').focus();
-    }else{
-      wrap.style.display = 'none';
-      $('typeCustom').value = '';
-      addType(v);
-      $('typeSel').selectedIndex = 0;
-    }
-  });
-  $('typeCustom').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      addType($('typeCustom').value);
-      $('typeSel').selectedIndex = 0;
-      $('typeCustomWrap').style.display = 'none';
-      $('typeCustom').value = '';
-    }
-  });
-
-  $('addTypeBtn').addEventListener('click', () => {
-    const v = $('typeSel').value;
-    if(v === '__custom__'){
-      addType($('typeCustom').value);
-    }else{
-      addType(v);
-    }
-    // reset
-    $('typeSel').selectedIndex = 0;
-    $('typeCustomWrap').style.display = 'none';
+  $('addTypeBtn').addEventListener('click', ()=>{
+    const v = ($('typeCustom').value||'').trim();
+    if(!v) return;
+    if(selectedTypes.includes(v) || availableTypes.includes(v)) { toast('الموجود بالفعل'); return; }
+    availableTypes.unshift(v);
     $('typeCustom').value = '';
+    renderAllTypes();
   });
 
-  
-  /* ---------------------------
-     Platform/Type Picker logic
-  ----------------------------*/
-  $('openPlatformsBtn').addEventListener('click', () => openPicker($('platformPicker')));
-  $('closePlatformsBtn').addEventListener('click', () => closePicker($('platformPicker')));
-
-  $('openTypesBtn').addEventListener('click', () => openPicker($('typePicker')));
-  $('closeTypesBtn').addEventListener('click', () => closePicker($('typePicker')));
-
-  $('addPlatformCustomBtn').addEventListener('click', () => {
-    addPlatform($('platformCustom').value);
-    $('platformCustom').value = '';
-    $('platformCustom').focus();
-  });
-  $('platformCustom').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      addPlatform($('platformCustom').value);
-      $('platformCustom').value = '';
-    }
-  });
-
-  $('addTypeCustomBtn').addEventListener('click', () => {
-    addType($('typeCustom').value);
-    $('typeCustom').value = '';
-    $('typeCustom').focus();
-  });
-  $('typeCustom').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      addType($('typeCustom').value);
-      $('typeCustom').value = '';
-    }
-  });
-
-  // Initial list render
-  renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
-  renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
-
-/* ---------------------------
-     Preview modal
-  ----------------------------*/
-  const modalBackdrop = $('modalBackdrop');
-  $('previewBtn').addEventListener('click', () => {
+  function buildPlanRows(){
     const year = Number(yearSel.value);
-    const mi = Number(monthSel.value);
-    const dim = daysInMonth(year, mi);
-    const nRaw = Number.isFinite(state.publishDays) ? state.publishDays : 0;
-    const n = Math.min(Math.max(nRaw, 0), dim);
-    let fridays = 0;
-    for(let d=1; d<=n; d++){
-      if(isFriday(new Date(year, mi, d))) fridays++;
-    }
-
-    const body = $('modalBody');
-    body.innerHTML = `
-      <div class="kvs">
-        <div class="kv"><b>الفترة</b><small>${monthNamesAr[mi]} ${year} — ${n} يوم نشر</small></div>
-        <div class="kv"><b>قاعدة الجمعة</b><small>جمعة مباركة تلقائيًا (${fridays} جمعة داخل الشهر)</small></div>
-        <div class="kv"><b>المنصات</b><small>${state.platforms.length ? state.platforms.map(escapeHtml).join('، ') : '—'}</small></div>
-        <div class="kv"><b>أنواع المحتوى</b><small>${state.types.length ? state.types.map(escapeHtml).join('، ') : '—'}</small></div>
-      </div>
-      <div style="margin-top:12px;">
-        <b style="color:var(--brown);">هيتولّد الشيت بأعمدة:</b>
-        <div style="margin-top:6px;color:var(--muted);">اليوم • المنصة • نوع المحتوى • اسم السيارة (تكتبه أنت)</div>
-        <div style="margin-top:10px;color:var(--muted);">ملاحظة: في يوم الجمعة، “اسم السيارة” يفضل فاضي والصف يكون “جمعة مباركة”.</div>
-      </div>
-    `;
-    modalBackdrop.style.display = 'flex';
-  });
-  $('closeModalBtn').addEventListener('click', () => modalBackdrop.style.display = 'none');
-  modalBackdrop.addEventListener('click', (e) => {
-    if(e.target === modalBackdrop) modalBackdrop.style.display = 'none';
-  });
-
-  /* ---------------------------
-     Export: Sheet
-  ----------------------------*/
-  function buildRows(){
-    const year = Number(yearSel.value);
-    const mi = Number(monthSel.value);
-    const dim = daysInMonth(year, mi);
+    const monthIndex0 = Number(monthSel.value);
+    const daysN = Math.max(0, Number((publishDays.value||'').trim()) || 0);
 
     const rows = [];
-    rows.push(["اليوم", "المنصات", "أنواع المحتوى", "اسم السيارة"]);
+    for(let d=1; d<=daysN; d++){
+      const date = new Date(year, monthIndex0, d);
+      const iso = date.toISOString().slice(0,10);
+      const isFriday = date.getDay() === 5;
 
-    const platformsCell = state.platforms.join(" | ");
-    const typesCell = state.types.join(" | ");
-
-    const nRaw = Number.isFinite(state.publishDays) ? state.publishDays : 0;
-    const n = Math.min(Math.max(nRaw, 0), dim);
-
-    for(let d=1; d<=n; d++){
-      const date = new Date(year, mi, d);
-      const dayLabel = fmtDayLabel(year, mi, d);
-
-      if(isFriday(date)){
-        rows.push([dayLabel, platformsCell, "جمعة مباركة", ""]);
-      }else{
-        rows.push([dayLabel, platformsCell, typesCell, ""]);
-      }
+      rows.push({
+        "اليوم": iso,
+        "المنصات": selectedPlatforms.join(', '),
+        "نوع المحتوى": selectedTypes.join(', '),
+        "اسم السيارة": isFriday ? 'جمعة مباركة' : ''
+      });
     }
     return rows;
   }
 
-  function downloadXlsx(){
-    if(!window.XLSX){
-      alert("مكتبة XLSX لسه محمّلتش. جرّب تاني بعد ثانية.");
-      return;
-    }
-    const rows = buildRows();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // Make header bold-ish by setting column widths & freeze top row
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-
-    ws['!cols'] = [
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 42 },
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Plan");
-
-    const year = yearSel.value;
-    const mi = Number(monthSel.value);
-    const monthName = monthNamesAr[mi];
-    const prefix = (state.filePrefix || 'MZJ-Content-Plan').trim() || 'MZJ-Content-Plan';
-    const filename = `${prefix} - ${monthName} ${year}.xlsx`;
-
-    XLSX.writeFile(wb, filename);
-  }
-
-  $('downloadSheetBtn').addEventListener('click', downloadXlsx);
-
-  /* ---------------------------
-     Export: Script (.gs)
-  ----------------------------*/
-  function generateScriptText(){
-    const year = Number(yearSel.value);
-    const mi = Number(monthSel.value);
-    const monthName = monthNamesAr[mi];
-
-    const platforms = JSON.stringify(state.platforms, null, 2);
-    const types = JSON.stringify(state.types, null, 2);
-
-    return `/**
- * MZJ Content Planner — Folder Builder
- * Generated: ${new Date().toISOString()}
- *
- * ✅ Reads rows from the sheet (columns):
- *   اليوم | المنصة | نوع المحتوى | اسم السيارة
- *
- * ✅ Friday is automatic: نوع المحتوى = "جمعة مباركة"
- *
- * What this script creates in Drive:
- * - Month folder (e.g. "${year}-${String(mi+1).padStart(2,'0')} ${monthName}")
- * - For each day: a folder "يوم {DD}"
- * - For each row with a car name:
- *    car folder -> (الصور) and (ستوري)
- * - Ensures library folders exist in month root:
- *    (ريل مواصفات), (فيديو قصير), (جمعة مباركة -> الصور/ستوري)
- *
- * IMPORTANT:
- * 1) Put your ROOT_FOLDER_ID below (the main folder that holds your month folders)
- * 2) Set SHEET_NAME if needed
- */
-
-const ROOT_FOLDER_ID = "PUT_ROOT_FOLDER_ID_HERE";
-const SHEET_NAME = "Plan"; // tab name
-const COL_DAY = 1;       // A: اليوم
-const COL_PLATFORM = 2;  // B: المنصة
-const COL_TYPE = 3;      // C: نوع المحتوى
-const COL_CAR = 4;       // D: اسم السيارة
-
-const DEFAULT_PLATFORMS = ${platforms};
-const DEFAULT_TYPES = ${types};
-
-function runMZJFolderBuilder() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
-  const values = sh.getDataRange().getValues();
-  if (values.length <= 1) throw new Error("Sheet has no rows (except header).");
-
-  const root = DriveApp.getFolderById(ROOT_FOLDER_ID);
-
-  const monthFolderName = "${year}-${String(mi+1).padStart(2,'0')} ${monthName}";
-  const monthFolder = getOrCreateFolder_(root, monthFolderName);
-
-  // Ensure libraries
-  getOrCreateFolder_(monthFolder, "ريل مواصفات");
-  getOrCreateFolder_(monthFolder, "فيديو قصير");
-  const fridayFolder = getOrCreateFolder_(monthFolder, "جمعة مباركة");
-  getOrCreateFolder_(fridayFolder, "الصور");
-  getOrCreateFolder_(fridayFolder, "ستوري");
-
-  // Start from row 2 (skip header)
-  for (let i = 1; i < values.length; i++) {
-    const row = values[i];
-    const day = String(row[COL_DAY-1] || "").trim();
-    const platform = String(row[COL_PLATFORM-1] || "").trim();
-    const type = String(row[COL_TYPE-1] || "").trim();
-    const carName = String(row[COL_CAR-1] || "").trim();
-
-    if (!day || !platform || !type) continue;
-
-    // Create day folder
-    const dd = dayToDD_(day); // from YYYY-MM-DD -> DD
-    const dayFolder = getOrCreateFolder_(monthFolder, "يوم " + dd);
-
-    // Friday: just ensure جمعة مباركة exists (already done)
-    if (type === "جمعة مباركة") {
-      continue;
-    }
-
-    // For non-Friday rows, car name is required to build folders
-    if (!carName) continue;
-
-    const carFolder = getOrCreateFolder_(dayFolder, carName);
-    getOrCreateFolder_(carFolder, "الصور");
-    getOrCreateFolder_(carFolder, "ستوري");
-  }
-
-  SpreadsheetApp.getUi().alert("تم إنشاء/تحديث فولدرات الشهر بنجاح ✅\\n" + monthFolderName);
-}
-
-function dayToDD_(dayStr) {
-  // Accept: YYYY-MM-DD (preferred)
-  // Fallback: any ending number
-  const m = dayStr.match(/(\\d{4})-(\\d{2})-(\\d{2})/);
-  if (m) return m[3];
-  const m2 = dayStr.match(/(\\d{1,2})\\s*$/);
-  if (m2) return String(m2[1]).padStart(2,'0');
-  return "??";
-}
-
-function getOrCreateFolder_(parent, name) {
-  const it = parent.getFoldersByName(name);
-  if (it.hasNext()) return it.next();
-  return parent.createFolder(name);
-}
-`;
-  }
-
-  function downloadScript(){
-    const text = generateScriptText();
-    const year = yearSel.value;
-    const mi = Number(monthSel.value);
-    const monthName = monthNamesAr[mi];
-    const prefix = (state.filePrefix || 'MZJ-Content-Plan').trim() || 'MZJ-Content-Plan';
-    const filename = `${prefix} - Script - ${monthName} ${year}.gs`;
-
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  function downloadBlob(blob, filename){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1294,187 +521,232 @@ function getOrCreateFolder_(parent, name) {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
   }
 
-  $('downloadScriptBtn').addEventListener('click', downloadScript);
+  async function downloadExcel(){
+    if(typeof XLSX === 'undefined'){
+      toast('XLSX مش محمّل');
+      return;
+    }
+    if(!publishDays.value.trim()){
+      toast('اكتب عدد أيام النشر');
+      return;
+    }
+    const rows = buildPlanRows();
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ["اليوم","المنصات","نوع المحتوى","اسم السيارة"] });
+    ws['!cols'] = [{wch:14},{wch:36},{wch:36},{wch:40}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Plan');
 
-  /* ---------------------------
-     Firebase: load/save defaults
-  ----------------------------*/
+    const year = Number(yearSel.value);
+    const monthNum = String(Number(monthSel.value)+1).padStart(2,'0');
+    const file = `MZJ-Plan-${year}-${monthNum}.xlsx`;
+
+    const out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    downloadBlob(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), file);
+  }
+
+  const builderJs = `const fs = require('fs');
+const path = require('path');
+const XLSX = require('xlsx');
+
+function safeName(s){
+  return String(s||'').trim().replace(/[\\\\/:*?\\"<>|]/g,'-').replace(/\\s+/g,' ').trim();
+}
+function ensureDir(p){ if(!fs.existsSync(p)) fs.mkdirSync(p,{recursive:true}); }
+function splitList(s){ return String(s||'').split(',').map(x=>x.trim()).filter(Boolean); }
+function typeFolders(typeName){
+  const t = (typeName||'').toLowerCase();
+  if(t.includes('صورة') || t.includes('بوست')) return ['صور','ستوري'];
+  if(t.includes('مواصفات')) return ['ريل مواصفات'];
+  if(t.includes('فيديو') || t.includes('قصير')) return ['فيديو قصير'];
+  if(t.includes('جمعة')) return ['صور','ستوري'];
+  return [safeName(typeName)];
+}
+
+const root = path.join(__dirname,'OUTPUT');
+const planPath = path.join(__dirname,'plan.xlsx');
+
+if(!fs.existsSync(planPath)){
+  console.error('Missing plan.xlsx (ضع ملف الشيت باسم plan.xlsx داخل نفس المجلد).');
+  process.exit(1);
+}
+
+const wb = XLSX.readFile(planPath);
+const ws = wb.Sheets[wb.SheetNames[0]];
+const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+ensureDir(root);
+
+for(const r of rows){
+  const day = safeName(r['اليوم'] || '');
+  if(!day) continue;
+
+  const platforms = splitList(r['المنصات'] || '');
+  const types = splitList(r['نوع المحتوى'] || '');
+  const car = safeName(r['اسم السيارة'] || '');
+
+  const isFridayPost = (car === 'جمعة مباركة');
+
+  if(isFridayPost){
+    const base = path.join(root, day, 'جمعة مباركة');
+    ensureDir(path.join(base,'صور'));
+    ensureDir(path.join(base,'ستوري'));
+    continue;
+  }
+
+  for(const p of (platforms.length ? platforms : ['Platform'])){
+    const platBase = path.join(root, day, safeName(p));
+    for(const t of (types.length ? types : ['نوع المحتوى'])){
+      const folders = typeFolders(t);
+      for(const f of folders){
+        const target = path.join(platBase, f, car || 'اسم السيارة');
+        ensureDir(target);
+      }
+    }
+  }
+}
+
+console.log('Done ✅  Created folders in OUTPUT');`;
+
+  async function downloadWinZip(){
+    if(typeof JSZip === 'undefined'){
+      toast('JSZip مش محمّل');
+      return;
+    }
+    const zip = new JSZip();
+    const packageJson = {
+      name: "mzj-folder-builder",
+      version: "1.0.0",
+      private: true,
+      type: "commonjs",
+      scripts: { start: "node build-folders.js" },
+      dependencies: { xlsx: "^0.18.5" }
+    };
+    const readme = `تشغيل سكربت إنشاء الفولدرات (ويندوز)\r\n\r\n1) فك الضغط\r\n2) ضع ملف الشيت باسم plan.xlsx داخل نفس المجلد\r\n3) دبل كليك RUN.bat\r\n\r\nالمخرجات:\r\nOUTPUT\\YYYY-MM-DD\\Platform\\(صور/ستوري/ريل مواصفات/فيديو قصير)\\اسم السيارة\r\nويوم الجمعة:\r\nOUTPUT\\YYYY-MM-DD\\جمعة مباركة\\(صور/ستوري)\r\n`;
+    const bat = `@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho Installing dependencies...\r\nnpm install\r\nif %errorlevel% neq 0 (\r\n  echo npm install failed.\r\n  pause\r\n  exit /b 1\r\n)\r\necho Running...\r\nnode build-folders.js\r\npause\r\n`;
+
+    zip.file("package.json", JSON.stringify(packageJson, null, 2));
+    zip.file("build-folders.js", builderJs);
+    zip.file("RUN.bat", bat);
+    zip.file("README_AR.txt", readme);
+
+    const blob = await zip.generateAsync({type:'blob'});
+    downloadBlob(blob, 'mzj-folder-builder-win.zip');
+  }
+
+  
+  // ---------------- Firebase (optional) ----------------
   const fbDot = $('fbDot');
-  const fbTitle = $('fbTitle');
-  const fbSub = $('fbSub');
+  const fbText = $('fbText');
+  const fbBtn = $('fbBtn');
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCUniCf_A3fyZHbUN0REKhrFwhjYbojWIc",
-    authDomain: "mzj-content-planner.firebaseapp.com",
-    projectId: "mzj-content-planner",
-    storageBucket: "mzj-content-planner.firebasestorage.app",
-    messagingSenderId: "702048592652",
-    appId: "1:702048592652:web:9b3377dacbe4c98b339f29",
-    measurementId: "G-J77RGXSL4R"
-  };
-
-  let db = null;
-  let settingsRef = null;
-
-  function setFbStatus(kind, title, sub){
-    const fbTitle = document.getElementById('fbTitle');
-    const fbSub = document.getElementById('fbSub');
-    const fbDot = document.getElementById('fbDot');
-    if(!fbTitle || !fbSub || !fbDot) return;
-    fbDot.classList.remove('ok','bad','warn');
-    if(kind === 'ok') fbDot.classList.add('ok');
-    if(kind === 'bad') fbDot.classList.add('bad');
-    if(kind === 'warn') fbDot.classList.add('warn');
-    fbTitle.textContent = title;
-    fbSub.textContent = sub;
+  function setFb(state, text){
+    if(state === 'ok'){
+      fbDot.style.background = '#2bb673';
+      fbDot.style.boxShadow = '0 0 0 3px rgba(43,182,115,.18)';
+    }else if(state === 'bad'){
+      fbDot.style.background = '#e44';
+      fbDot.style.boxShadow = '0 0 0 3px rgba(228,68,68,.18)';
+    }else{
+      fbDot.style.background = '#d1b3a5';
+      fbDot.style.boxShadow = '0 0 0 3px rgba(188,143,116,.18)';
+    }
+    fbText.textContent = text;
   }
 
-  function initFirebase(){
-    setFbStatus('warn','Firebase','جاري الاتصال…');
-    // Never hang forever on "جاري الاتصال"
-    const timeoutMs = 8000;
-    const t = setTimeout(() => {
-      setFbStatus('bad', 'Firebase', 'تعذّر الاتصال (Timeout) — شيّك الشبكة/Rules');
-      console.warn('[Firebase] init timeout');
-    }, timeoutMs);
-
+  async function fbInit(){
+    setFb('mid','جاري الاتصال…');
     try{
-      if (typeof window.firebase === 'undefined') {
-        setFbStatus('bad', 'Firebase', 'SDK غير متاح — المكتبات ما تحمّلت');
-        return;
-      }
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      settingsRef = db.collection('settings').doc('content-planner');
-
-      // quick probe read to surface rules errors
-      settingsRef.get()
-        .then((snap) => {
-          clearTimeout(t);
-          setFbStatus('ok', 'Firebase', 'متصل ✅');
-          // if doc missing, try seed (may be blocked by rules)
-          if(!snap.exists){
-            return settingsRef.set({
-              platforms: [],
-              contentTypes: [],
-              publishDays: null,
-              filePrefix: '',
-              lastYear: null,
-              lastMonth: null,
-              updatedAt: Date.now()
-            }, { merge: true });
-          }
-        })
-        .then(() => {
-          loadSettingsFromFirebase();
-        })
-        .catch((err) => {
-          clearTimeout(t);
-          console.error('[Firebase probe error]', err);
-          const msg = String(err && (err.code || err.message) || err);
-          if(msg.includes('permission') || msg.includes('PERMISSION') || msg.includes('permission-denied')){
-            setFbStatus('bad', 'Firebase', 'مرفوض (Rules) — افتح settings/content-planner');
-          }else{
-            setFbStatus('bad', 'Firebase', 'فشل الاتصال — ' + (err.message || msg));
-          }
-        });
-
-    }catch(err){
-      clearTimeout(t);
-      console.error('[Firebase init error]', err);
-      setFbStatus('bad', 'Firebase', 'فشل الاتصال');
+      const fb = await window.__fbReady;
+      await fb.ping();
+      setFb('ok','متصل ✅');
+      fbBtn.disabled = false;
+      await fbLoad();
+    }catch(e){
+      console.error('Firebase error', e);
+      setFb('bad','غير متصل');
+      fbBtn.disabled = true;
     }
   }
 
-  async function loadSettingsFromFirebase(){
-    if(!settingsRef) return;
+  async function fbLoad(){
     try{
-      const snap = await settingsRef.get();
-      if(snap.exists){
-        const data = snap.data() || {};
-        state.platforms = uniq(data.platforms || []);
-        state.types = uniq(data.contentTypes || []);
-        if(Number.isFinite(data.publishDays)) { state.publishDays = data.publishDays; $('publishDays').value = String(data.publishDays); }
-        if(data.lastYear) yearSel.value = String(data.lastYear);
-        if(Number.isFinite(data.lastMonthIndex0)) monthSel.value = String(data.lastMonthIndex0);
-        state.year = Number(yearSel.value);
-        state.monthIndex0 = Number(monthSel.value);
-        renderChips();
-        renderPickerList($('platformList'), PLATFORM_DEFAULTS, state.platforms, addPlatform);
-        renderPickerList($('typeList'), TYPE_DEFAULTS, state.types, addType);
-        ensureReadyState();
-        setFbStatus('ok','Firebase','تم تحميل الإعدادات');
+      const fb = await window.__fbReady;
+      const snap = await fb.getDoc(fb.ref);
+      if(snap.exists()){
+        const d = snap.data() || {};
+
+        if(Array.isArray(d.platforms)){
+          selectedPlatforms = d.platforms.slice();
+          availablePlatforms = [...DEFAULT_PLATFORMS].filter(x=>!selectedPlatforms.includes(x));
+          renderAllPlatforms();
+        }
+        if(Array.isArray(d.contentTypes)){
+          selectedTypes = d.contentTypes.slice();
+          availableTypes = [...DEFAULT_TYPES].filter(x=>!selectedTypes.includes(x));
+          renderAllTypes();
+        }
+        if(typeof d.publishDays === 'number') publishDays.value = String(d.publishDays || '');
+        if(typeof d.year === 'number') yearSel.value = String(d.year);
+        if(typeof d.monthIndex0 === 'number') monthSel.value = String(d.monthIndex0);
+
+        toast('تم تحميل الإعدادات من Firebase');
       }else{
-        // first time: seed with empty doc
-        await settingsRef.set({
-          platforms: [],
-          contentTypes: [],
-          lastYear: Number(yearSel.value),
-          lastMonthIndex0: Number(monthSel.value),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        setFbStatus('ok','Firebase','جاهز');
+        await fbSave(true);
       }
-    }catch(err){
-      console.error(err);
-      setFbStatus('bad','Firebase','مشكلة في Firestore');
+    }catch(e){
+      console.error('fbLoad', e);
     }
   }
 
-  async function saveSettings(){
-    if(!settingsRef) return;
+  let __saveTimer = null;
+  function fbScheduleSave(){
+    clearTimeout(__saveTimer);
+    __saveTimer = setTimeout(()=>fbSave(false), 450);
+  }
+
+  async function fbSave(isSeed){
     try{
-      await settingsRef.set({
-        platforms: state.platforms,
-        contentTypes: state.types,
-        publishDays: state.publishDays,
-        lastYear: Number(yearSel.value),
-        lastMonthIndex0: Number(monthSel.value),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      setFbStatus('ok','Firebase','تم الحفظ');
-    }catch(err){
-      console.error(err);
-      setFbStatus('bad','Firebase','فشل الحفظ');
+      const fb = await window.__fbReady;
+      const payload = {
+        platforms: selectedPlatforms,
+        contentTypes: selectedTypes,
+        publishDays: Math.max(0, Number((publishDays.value||'').trim()) || 0),
+        year: Number(yearSel.value),
+        monthIndex0: Number(monthSel.value),
+        updatedAt: fb.serverTimestamp()
+      };
+      if(isSeed) payload.createdAt = fb.serverTimestamp();
+      await fb.setDoc(fb.ref, payload, { merge: true });
+    }catch(e){
+      // silent
     }
   }
-  const saveSettingsDebounced = debounce(saveSettings, 650);
 
-  $('resetDefaultsBtn').addEventListener('click', loadSettingsFromFirebase);
+  fbBtn?.addEventListener('click', fbLoad);
 
-  // Initial state
-  state.year = Number(yearSel.value);
-  state.monthIndex0 = Number(monthSel.value);
+  yearSel.addEventListener('change', fbScheduleSave);
+  monthSel.addEventListener('change', fbScheduleSave);
+  publishDays.addEventListener('input', fbScheduleSave);
 
-  // init firebase after scripts are loaded
-  window.addEventListener('load', () => {
-    setFbStatus('warn', 'Firebase', 'جاري الاتصال…');
+  // wrap selection mutators to auto-save
+  const __pickPlatform = pickPlatform;
+  pickPlatform = function(name){ __pickPlatform(name); fbScheduleSave(); };
+  const __removePlatform = removePlatform;
+  removePlatform = function(name){ __removePlatform(name); fbScheduleSave(); };
 
-    // If Firebase SDK is blocked (AdBlock/Firewall/Network), surface it quickly
-    const sdkTimer = setTimeout(() => {
-      if (typeof window.firebase === 'undefined') {
-        setFbStatus('bad', 'Firebase', 'SDK لم يتحمل — اقفل AdBlock/Firewall أو جرّب شبكة/متصفح ثاني');
-      }
-    }, 5000);
+  const __pickType = pickType;
+  pickType = function(name){ __pickType(name); fbScheduleSave(); };
+  const __removeType = removeType;
+  removeType = function(name){ __removeType(name); fbScheduleSave(); };
 
-    // Start firebase init after a tick (so DOM elements exist)
-    setTimeout(() => {
-      try{
-        initFirebase();
-      }catch(e){
-        console.error('[initFirebase throw]', e);
-        setFbStatus('bad', 'Firebase', 'خطأ JavaScript — راجع Console');
-      }
-    }, 0);
+  // init
+  fbInit();
 
-    // We don't clear sdkTimer here; it'll self-resolve once SDK exists/loads.
-    ensureReadyState();
-  });
-
-})();
+$('downloadExcelBtn').addEventListener('click', downloadExcel);
+  $('downloadWinZipBtn').addEventListener('click', downloadWinZip);
 </script>
 </body>
 </html>
