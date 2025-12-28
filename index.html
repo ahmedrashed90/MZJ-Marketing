@@ -435,7 +435,11 @@
 
     for(let d=1; d<=daysN; d++){
       const date = new Date(year, monthIndex0, d);
-      const iso = date.toISOString().slice(0,10);
+      const iso =
+  date.getFullYear() + '-' +
+  String(date.getMonth() + 1).padStart(2, '0') + '-' +
+  String(date.getDate()).padStart(2, '0');
+
       const isFriday = date.getDay() === 5;
 
       const row = {
@@ -641,3 +645,4 @@ console.log('Done ✅  Created folders in OUTPUT');`;
 </script>
 </body>
 </html>
+
