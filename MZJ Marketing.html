@@ -1,0 +1,1130 @@
+
+!doctype html
+html lang=ar dir=rtl
+head
+  meta charset=utf-8 
+  meta name=viewport content=width=device-width, initial-scale=1 
+  titleMZJ  مولّد خطة النشرtitle
+
+  !-- Font --
+  link rel=preconnect href=httpsfonts.googleapis.com
+  link rel=preconnect href=httpsfonts.gstatic.com crossorigin
+  link href=httpsfonts.googleapis.comcss2family=Tajawalwght@300;400;600;700&display=swap rel=stylesheet
+
+  !-- SheetJS (XLSX export) --
+  script defer src=httpscdn.jsdelivr.netnpmxlsx@0.18.5distxlsx.full.min.jsscript
+
+  !-- Firebase (compat for simplicity) --
+  script defer src=httpswww.gstatic.comfirebasejs9.23.0firebase-app-compat.jsscript
+  script defer src=httpswww.gstatic.comfirebasejs9.23.0firebase-firestore-compat.jsscript
+
+  style
+    root{
+      --brown rgb(62,36,32);
+      --beige rgb(188,143,116);
+      --cream #fff8ef;
+      --text #1e1b18;
+      --muted rgba(30,27,24,.65);
+      --border rgba(62,36,32,.12);
+      --shadow 0 10px 30px rgba(62,36,32,.12);
+      --shadow2 0 8px 18px rgba(62,36,32,.10);
+      --radius 16px;
+      --radius2 22px;
+    }
+
+    { box-sizing border-box; }
+    html, body { height 100%; }
+    body{
+      margin0;
+      font-family Tajawal, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background radial-gradient(1100px 600px at 80% -10%, rgba(188,143,116,.22), transparent 55%),
+                  radial-gradient(900px 520px at 10% 0%, rgba(62,36,32,.10), transparent 58%),
+                  var(--cream);
+      color var(--text);
+      overflow-x hidden;
+    }
+
+     Mouse glow 
+    .glow{
+      position fixed;
+      inset 0;
+      pointer-events none;
+      z-index 0;
+      opacity .85;
+      transition opacity .25s ease;
+      background radial-gradient(380px 380px at var(--mx,50%) var(--my,50%),
+        rgba(188,143,116,.28),
+        rgba(188,143,116,.12) 35%,
+        rgba(188,143,116,.06) 55%,
+        transparent 72%);
+      mix-blend-mode multiply;
+      filter blur(0px);
+    }
+    @media (hover none), (pointer coarse){
+      .glow{ displaynone; }
+    }
+
+    .page{
+      position relative;
+      z-index 1;
+      max-width 1100px;
+      margin 0 auto;
+      padding 22px 18px 110px;
+    }
+
+    header{
+      displayflex;
+      align-itemsflex-start;
+      justify-content space-between;
+      gap 14px;
+      padding 18px 16px;
+      border 1px solid var(--border);
+      background rgba(255,248,239,.7);
+      backdrop-filter blur(10px);
+      border-radius var(--radius2);
+      box-shadow var(--shadow);
+    }
+    .brand{
+      displayflex;
+      align-itemscenter;
+      gap 12px;
+      min-width 280px;
+    }
+    .logo{
+      width 46px; height 46px;
+      border-radius 14px;
+      background linear-gradient(135deg, rgba(62,36,32,1), rgba(188,143,116,1));
+      box-shadow 0 8px 18px rgba(62,36,32,.2);
+      position relative;
+      overflow hidden;
+    }
+    .logoafter{
+      content;
+      positionabsolute; inset-40%;
+      background radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), transparent 55%);
+      transform rotate(20deg);
+    }
+    .brand h1{
+      margin0;
+      font-size 18px;
+      color var(--brown);
+      letter-spacing .2px;
+    }
+    .brand p{
+      margin 4px 0 0;
+      font-size 12.5px;
+      color var(--muted);
+      line-height 1.6;
+    }
+
+    .status-pill{
+      displayflex;
+      align-itemscenter;
+      gap 10px;
+      padding 10px 12px;
+      border-radius 999px;
+      border 1px solid var(--border);
+      background rgba(255,255,255,.55);
+      box-shadow var(--shadow2);
+      min-height 44px;
+      white-space nowrap;
+    }
+    .dot{
+      width 10px;
+      height 10px;
+      border-radius 999px;
+      background #b7b7b7;
+      box-shadow 0 0 0 6px rgba(183,183,183,.12);
+    }
+    .dot.ok{
+      background #1fa971;
+      box-shadow 0 0 0 6px rgba(31,169,113,.12);
+    }
+    .dot.bad{
+      background #d84d4d;
+      box-shadow 0 0 0 6px rgba(216,77,77,.12);
+    }
+    .status-pill strong{
+      font-size 13px;
+      color var(--brown);
+    }
+    .status-pill span{
+      font-size 12px;
+      color var(--muted);
+    }
+
+    .grid{
+      displaygrid;
+      grid-template-columns 1fr 1fr;
+      gap 14px;
+      margin-top 14px;
+    }
+    @media (max-width 900px){
+      .grid{ grid-template-columns 1fr; }
+      .brand{ min-width auto; }
+      header{ flex-direction column; }
+      .status-pill{ width 100%; justify-content space-between; }
+    }
+
+    .card{
+      border 1px solid var(--border);
+      background rgba(255,248,239,.72);
+      backdrop-filter blur(10px);
+      border-radius var(--radius2);
+      box-shadow var(--shadow);
+      padding 16px;
+      position relative;
+      overflow hidden;
+      transition transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    }
+    .cardhover{
+      transform translateY(-2px);
+      box-shadow 0 14px 40px rgba(62,36,32,.14);
+      border-color rgba(188,143,116,.35);
+    }
+    .cardbefore{
+      content;
+      positionabsolute;
+      inset-1px;
+      background radial-gradient(520px 240px at 80% 0%, rgba(188,143,116,.20), transparent 60%);
+      pointer-eventsnone;
+    }
+
+    .card h2{
+      margin0 0 10px;
+      font-size 15px;
+      color var(--brown);
+      displayflex;
+      align-itemscenter;
+      justify-content space-between;
+      gap 10px;
+    }
+    .hint{
+      font-size 12px;
+      color var(--muted);
+      line-height 1.7;
+      margin 0 0 12px;
+    }
+
+    .row{
+      displaygrid;
+      grid-template-columns 1fr 1fr;
+      gap 10px;
+    }
+    @media (max-width 520px){
+      .row{ grid-template-columns 1fr; }
+    }
+
+    label{
+      displayblock;
+      font-size 12px;
+      color var(--muted);
+      margin-bottom 6px;
+    }
+    select, input[type=text]{
+      width 100%;
+      padding 12px 12px;
+      border-radius 14px;
+      border 1px solid rgba(62,36,32,.18);
+      background rgba(255,255,255,.75);
+      outline none;
+      font-family inherit;
+      font-size 13px;
+      transition border-color .15s ease, box-shadow .15s ease;
+    }
+    selectfocus, input[type=text]focus{
+      border-color rgba(188,143,116,.9);
+      box-shadow 0 0 0 4px rgba(188,143,116,.18);
+    }
+
+    .adder{
+      displayflex;
+      gap 10px;
+      align-items flex-end;
+      margin-top 8px;
+    }
+    .adder .grow{ flex 1; }
+
+    .btn{
+      appearancenone;
+      border 1px solid rgba(62,36,32,.22);
+      background rgba(255,255,255,.7);
+      color var(--brown);
+      padding 12px 14px;
+      border-radius 14px;
+      cursorpointer;
+      font-family inherit;
+      font-weight 600;
+      font-size 13px;
+      transition transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+      box-shadow 0 8px 18px rgba(62,36,32,.10);
+      user-selectnone;
+    }
+    .btnhover{
+      transform translateY(-1px);
+      border-color rgba(188,143,116,.55);
+      box-shadow 0 12px 24px rgba(62,36,32,.14);
+    }
+    .btnactive{ transform translateY(0px); }
+    .btn.primary{
+      background linear-gradient(135deg, rgba(62,36,32,1), rgba(188,143,116,1));
+      border-color rgba(62,36,32,.1);
+      color #fff;
+    }
+    .btn.ghost{
+      background rgba(255,255,255,.55);
+      box-shadow none;
+    }
+    .btndisabled{
+      opacity .55;
+      cursor not-allowed;
+      transformnone;
+      box-shadow none;
+    }
+
+    .chips{
+      displayflex;
+      flex-wrap wrap;
+      gap 8px;
+      margin-top 12px;
+    }
+    .chip{
+      displayflex;
+      align-itemscenter;
+      gap 8px;
+      padding 8px 10px;
+      border-radius 999px;
+      background rgba(62,36,32,.06);
+      border 1px solid rgba(62,36,32,.12);
+      color var(--brown);
+      font-size 12.5px;
+      box-shadow 0 8px 14px rgba(62,36,32,.08);
+      transition border-color .14s ease, background .14s ease;
+    }
+    .chiphover{
+      border-color rgba(188,143,116,.45);
+      background rgba(188,143,116,.10);
+    }
+    .chip button{
+      border none;
+      background transparent;
+      cursor pointer;
+      color rgba(62,36,32,.8);
+      font-size 14px;
+      line-height 1;
+      padding 0 2px;
+    }
+
+     Fixed action bar 
+    .actionbar{
+      position fixed;
+      left 0; right 0; bottom 0;
+      z-index 10;
+      padding 14px 14px;
+      background rgba(255,248,239,.86);
+      backdrop-filter blur(12px);
+      border-top 1px solid rgba(62,36,32,.12);
+      box-shadow 0 -16px 40px rgba(62,36,32,.10);
+    }
+    .actionbar .inner{
+      max-width 1100px;
+      margin 0 auto;
+      displayflex;
+      gap 10px;
+      align-itemscenter;
+      justify-content space-between;
+      flex-wrap wrap;
+    }
+    .left-actions{ displayflex; gap 10px; flex-wrap wrap; }
+    .meta{
+      displayflex;
+      gap 10px;
+      align-itemscenter;
+      color var(--muted);
+      font-size 12px;
+    }
+    .sep{ opacity.5; }
+
+     Modal 
+    .modal-backdrop{
+      position fixed;
+      inset 0;
+      background rgba(0,0,0,.35);
+      displaynone;
+      align-items center;
+      justify-content center;
+      padding 14px;
+      z-index 30;
+    }
+    .modal{
+      width min(760px, 100%);
+      border-radius 18px;
+      border 1px solid rgba(62,36,32,.12);
+      background rgba(255,248,239,.92);
+      backdrop-filter blur(14px);
+      box-shadow 0 24px 70px rgba(0,0,0,.28);
+      overflow hidden;
+    }
+    .modal header{
+      border-radius 0;
+      border none;
+      box-shadow none;
+      background transparent;
+      padding 14px 16px;
+    }
+    .modal-body{
+      padding 0 16px 16px;
+      color var(--text);
+      font-size 13.5px;
+      line-height 1.9;
+    }
+    .kvs{
+      displaygrid;
+      grid-template-columns 1fr 1fr;
+      gap 10px;
+      margin-top 8px;
+    }
+    @media (max-width 640px){
+      .kvs{ grid-template-columns 1fr; }
+    }
+    .kv{
+      border 1px solid rgba(62,36,32,.12);
+      border-radius 14px;
+      background rgba(255,255,255,.65);
+      padding 10px 12px;
+    }
+    .kv b{ color var(--brown); }
+    .kv small{ color var(--muted); displayblock; margin-top 4px; }
+  style
+head
+body
+  div class=glow id=glowdiv
+
+  div class=page
+    header
+      div class=brand
+        div class=logo aria-hidden=truediv
+        div
+          h1مولّد خطة النشر — MZJh1
+          pاختار الشهر والسنة والمنصات وأنواع المحتوى، وبعدها حمّل الشيت والاسكربت. bالجمعة تلقائيًا “جمعة مباركة”.bp
+        div
+      div
+
+      div class=status-pill title=حالة الاتصال بـ Firestore
+        div style=displayflex;align-itemscenter;gap10px;
+          div class=dot id=fbDotdiv
+          div
+            strong id=fbTitleFirebasestrongbr
+            span id=fbSubجاري الاتصال…span
+          div
+        div
+        button class=btn ghost id=resetDefaultsBtn type=button title=إرجاع القيم الافتراضية المحفوظة من فايربيزتحديث من Firebasebutton
+      div
+    header
+
+    section class=grid
+      !-- Period --
+      div class=card
+        h2إعدادات الفترة span style=font-size12px;colorvar(--muted);font-weight600;(إلزامي)spanh2
+        p class=hintاختار الشهر والسنة. هيتولّد شيت فيه (اليومالمنصةنوع المحتوى) وأنت تكتب فقط bاسم السيارةb.p
+        div class=row
+          div
+            label for=yearSelالسنةlabel
+            select id=yearSelselect
+          div
+          div
+            label for=monthSelالشهرlabel
+            select id=monthSelselect
+          div
+        div
+      div
+
+      !-- Platforms --
+      div class=card
+        h2المنصات span style=font-size12px;colorvar(--muted);font-weight600;(مرنة)spanh2
+        p class=hintأضف المنصات اللي هتشتغل عليها. القائمة دي تتحفظ على Firebase وتظهر لك كل مرة.p
+
+        div class=adder
+          div class=grow
+            label for=platformSelاختر منصةlabel
+            select id=platformSel
+              option value= selected disabled— اختر —option
+              optionInstagramoption
+              optionTikTokoption
+              optionSnapchatoption
+              optionFacebookoption
+              optionX (Twitter)option
+              optionYouTube Shortsoption
+              optionLinkedInoption
+              option value=__custom__+ منصة مخصصة…option
+            select
+          div
+          button class=btn id=addPlatformBtn type=buttonإضافةbutton
+        div
+
+        div id=platformCustomWrap style=displaynone;margin-top10px;
+          label for=platformCustomاسم المنصة (مخصص)label
+          input id=platformCustom type=text placeholder=مثال Threads 
+        div
+
+        div class=chips id=platformChipsdiv
+      div
+
+      !-- Content Types --
+      div class=card
+        h2أنواع المحتوى span style=font-size12px;colorvar(--muted);font-weight600;(مرنة)spanh2
+        p class=hintأضف أنواع المحتوى بحرّية. (ريل مواصفات  فيديو قصير  صورة  ستوري… إلخ). تتحفظ على Firebase.p
+
+        div class=adder
+          div class=grow
+            label for=typeSelاختر نوع محتوىlabel
+            select id=typeSel
+              option value= selected disabled— اختر —option
+              optionصورةoption
+              optionستوريoption
+              optionريل مواصفاتoption
+              optionفيديو قصيرoption
+              option value=__custom__+ نوع محتوى مخصص…option
+            select
+          div
+          button class=btn id=addTypeBtn type=buttonإضافةbutton
+        div
+
+        div id=typeCustomWrap style=displaynone;margin-top10px;
+          label for=typeCustomاسم نوع المحتوى (مخصص)label
+          input id=typeCustom type=text placeholder=مثال بوست تثبيت  إعلان ممول 
+        div
+
+        div class=chips id=typeChipsdiv
+      div
+
+      !-- Output --
+      div class=card
+        h2مخرجات التحميلh2
+        p class=hint
+          ✅ bتحميل على الجهاز فقطbbr
+          ✅ المنصات وأنواع المحتوى تتحفظ على Firebasebr
+          ✅ يوم الجمعة تلقائيًا bجمعة مباركةb
+        p
+
+        div class=row
+          div
+            label for=filePrefixبادئة اسم الملف (اختياري)label
+            input id=filePrefix type=text placeholder=مثال MZJ-Content-Plan 
+          div
+          div
+            labelملاحظةlabel
+            div style=padding12px;border1px dashed rgba(62,36,32,.18);border-radius14px;backgroundrgba(255,255,255,.55);colorvar(--muted);font-size12.5px;line-height1.7;
+              الشيت هيتولد جاهز. أنت تكتب فقط bاسم السيارةb في العمود المخصص لكل صف.
+            div
+          div
+        div
+      div
+    section
+  div
+
+  !-- Fixed action bar --
+  div class=actionbar
+    div class=inner
+      div class=left-actions
+        button class=btn primary id=downloadSheetBtn type=button disabledتحميل الشيتbutton
+        button class=btn id=downloadScriptBtn type=button disabledتحميل الاسكربتbutton
+        button class=btn ghost id=previewBtn type=buttonمعاينةbutton
+      div
+      div class=meta
+        span id=rowsHint—span
+        span class=sep•span
+        spanالجمعة جمعة مباركة تلقائيًاspan
+      div
+    div
+  div
+
+  !-- Preview modal --
+  div class=modal-backdrop id=modalBackdrop role=dialog aria-modal=true
+    div class=modal
+      header
+        div style=displayflex;align-itemscenter;justify-contentspace-between;gap10px;width100%;
+          div style=displayflex;align-itemscenter;gap10px;
+            div class=logo style=width34px;height34px;border-radius12px;div
+            div
+              strong style=colorvar(--brown);font-size14px;معاينة الإعداداتstrongbr
+              span style=colorvar(--muted);font-size12px;قبل ما تحمّل الشيت والاسكربتspan
+            div
+          div
+          button class=btn ghost id=closeModalBtn type=buttonإغلاقbutton
+        div
+      header
+      div class=modal-body id=modalBodydiv
+    div
+  div
+
+script
+(() = {
+   ---------------------------
+     Mouse glow tracking
+  ----------------------------
+  const glow = document.getElementById('glow');
+  window.addEventListener('mousemove', (e) = {
+    const x = (e.clientX  window.innerWidth)  100;
+    const y = (e.clientY  window.innerHeight)  100;
+    document.documentElement.style.setProperty('--mx', x + '%');
+    document.documentElement.style.setProperty('--my', y + '%');
+  }, { passive true });
+
+   ---------------------------
+     Helpers
+  ----------------------------
+  const $ = (id) = document.getElementById(id);
+  const uniq = (arr) = Array.from(new Set(arr.map(s = (s'').trim()).filter(Boolean)));
+  const isFriday = (d) = d.getDay() === 5;  0=Sun ... 5=Fri (JS)
+  const monthNamesAr = [يناير,فبراير,مارس,أبريل,مايو,يونيو,يوليو,أغسطس,سبتمبر,أكتوبر,نوفمبر,ديسمبر];
+
+  function daysInMonth(year, monthIndex0){
+    return new Date(year, monthIndex0 + 1, 0).getDate();
+  }
+
+  function fmtDayLabel(year, monthIndex0, day){
+     e.g. 2026-01-03
+    const mm = String(monthIndex0+1).padStart(2,'0');
+    const dd = String(day).padStart(2,'0');
+    return `${year}-${mm}-${dd}`;
+  }
+
+  function ensureReadyState(){
+    const year = $('yearSel').value;
+    const month = $('monthSel').value;
+    const platforms = state.platforms;
+    const types = state.types;
+
+    const ok = !!year && !!month && platforms.length  0 && types.length  0;
+    $('downloadSheetBtn').disabled = !ok;
+    $('downloadScriptBtn').disabled = !ok;
+
+     Estimate rows to be generated
+    if(!year  !month){
+      $('rowsHint').textContent = '—';
+      return;
+    }
+    const y = Number(year);
+    const mi = Number(month);
+    const dim = daysInMonth(y, mi);
+    let rows = 0;
+    for(let d=1; d=dim; d++){
+      const date = new Date(y, mi, d);
+      if(isFriday(date)){
+        rows += platforms.length;  جمعة مباركة row per platform
+      }else{
+        rows += platforms.length  types.length;
+      }
+    }
+    $('rowsHint').textContent = `عدد الصفوف المتوقّع في الشيت ${rows.toLocaleString('ar-SA')}`;
+  }
+
+  function debounce(fn, ms=450){
+    let t;
+    return (...args) = {
+      clearTimeout(t);
+      t = setTimeout(() = fn(...args), ms);
+    };
+  }
+
+   ---------------------------
+     State
+  ----------------------------
+  const state = {
+    platforms [],
+    types [],
+    year null,
+    monthIndex0 null,
+    filePrefix '',
+  };
+
+   ---------------------------
+     UI init yearmonth
+  ----------------------------
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const yearSel = $('yearSel');
+  const monthSel = $('monthSel');
+
+  const startYear = currentYear - 1;
+  const endYear = currentYear + 6;
+
+  for(let y = startYear; y = endYear; y++){
+    const opt = document.createElement('option');
+    opt.value = String(y);
+    opt.textContent = String(y);
+    yearSel.appendChild(opt);
+  }
+
+  monthNamesAr.forEach((name, i) = {
+    const opt = document.createElement('option');
+    opt.value = String(i);  monthIndex0
+    opt.textContent = name;
+    monthSel.appendChild(opt);
+  });
+
+   Default to current
+  yearSel.value = String(currentYear);
+  monthSel.value = String(now.getMonth());
+
+  yearSel.addEventListener('change', () = {
+    state.year = Number(yearSel.value);
+    saveSettingsDebounced();
+    ensureReadyState();
+  });
+  monthSel.addEventListener('change', () = {
+    state.monthIndex0 = Number(monthSel.value);
+    saveSettingsDebounced();
+    ensureReadyState();
+  });
+
+  $('filePrefix').addEventListener('input', (e) = {
+    state.filePrefix = e.target.value  '';
+  });
+
+   ---------------------------
+     Chips rendering
+  ----------------------------
+  function renderChips(){
+    const pc = $('platformChips');
+    const tc = $('typeChips');
+    pc.innerHTML = '';
+    tc.innerHTML = '';
+
+    state.platforms.forEach((p) = {
+      const el = document.createElement('div');
+      el.className = 'chip';
+      el.innerHTML = `span${escapeHtml(p)}spanbutton type=button aria-label=حذف×button`;
+      el.querySelector('button').addEventListener('click', () = {
+        state.platforms = state.platforms.filter(x = x !== p);
+        renderChips();
+        saveSettingsDebounced();
+        ensureReadyState();
+      });
+      pc.appendChild(el);
+    });
+
+    state.types.forEach((t) = {
+      const el = document.createElement('div');
+      el.className = 'chip';
+      el.innerHTML = `span${escapeHtml(t)}spanbutton type=button aria-label=حذف×button`;
+      el.querySelector('button').addEventListener('click', () = {
+        state.types = state.types.filter(x = x !== t);
+        renderChips();
+        saveSettingsDebounced();
+        ensureReadyState();
+      });
+      tc.appendChild(el);
+    });
+  }
+
+  function escapeHtml(s){
+    return (s'').replace([&']g, (c) = ({
+      '&''&amp;','''&lt;','''&gt;','''&quot;',''&#039;'
+    }[c]));
+  }
+
+  function addPlatform(name){
+    const n = (name'').trim();
+    if(!n) return;
+    state.platforms = uniq([...state.platforms, n]);
+    renderChips();
+    saveSettingsDebounced();
+    ensureReadyState();
+  }
+
+  function addType(name){
+    const n = (name'').trim();
+    if(!n) return;
+    state.types = uniq([...state.types, n]);
+    renderChips();
+    saveSettingsDebounced();
+    ensureReadyState();
+  }
+
+   ---------------------------
+     Platform adder logic
+  ----------------------------
+  $('platformSel').addEventListener('change', () = {
+    const v = $('platformSel').value;
+    const wrap = $('platformCustomWrap');
+    if(v === '__custom__'){
+      wrap.style.display = 'block';
+      $('platformCustom').focus();
+    }else{
+      wrap.style.display = 'none';
+      $('platformCustom').value = '';
+    }
+  });
+  $('addPlatformBtn').addEventListener('click', () = {
+    const v = $('platformSel').value;
+    if(v === '__custom__'){
+      addPlatform($('platformCustom').value);
+    }else{
+      addPlatform(v);
+    }
+     reset
+    $('platformSel').selectedIndex = 0;
+    $('platformCustomWrap').style.display = 'none';
+    $('platformCustom').value = '';
+  });
+
+   ---------------------------
+     Type adder logic
+  ----------------------------
+  $('typeSel').addEventListener('change', () = {
+    const v = $('typeSel').value;
+    const wrap = $('typeCustomWrap');
+    if(v === '__custom__'){
+      wrap.style.display = 'block';
+      $('typeCustom').focus();
+    }else{
+      wrap.style.display = 'none';
+      $('typeCustom').value = '';
+    }
+  });
+  $('addTypeBtn').addEventListener('click', () = {
+    const v = $('typeSel').value;
+    if(v === '__custom__'){
+      addType($('typeCustom').value);
+    }else{
+      addType(v);
+    }
+     reset
+    $('typeSel').selectedIndex = 0;
+    $('typeCustomWrap').style.display = 'none';
+    $('typeCustom').value = '';
+  });
+
+   ---------------------------
+     Preview modal
+  ----------------------------
+  const modalBackdrop = $('modalBackdrop');
+  $('previewBtn').addEventListener('click', () = {
+    const year = Number(yearSel.value);
+    const mi = Number(monthSel.value);
+    const dim = daysInMonth(year, mi);
+    let fridays = 0;
+    for(let d=1; d=dim; d++){
+      if(isFriday(new Date(year, mi, d))) fridays++;
+    }
+
+    const body = $('modalBody');
+    body.innerHTML = `
+      div class=kvs
+        div class=kvbالفترةbsmall${monthNamesAr[mi]} ${year}smalldiv
+        div class=kvbقاعدة الجمعةbsmallجمعة مباركة تلقائيًا (${fridays} جمعة داخل الشهر)smalldiv
+        div class=kvbالمنصاتbsmall${state.platforms.length  state.platforms.map(escapeHtml).join('، ')  '—'}smalldiv
+        div class=kvbأنواع المحتوىbsmall${state.types.length  state.types.map(escapeHtml).join('، ')  '—'}smalldiv
+      div
+      div style=margin-top12px;
+        b style=colorvar(--brown);هيتولّد الشيت بأعمدةb
+        div style=margin-top6px;colorvar(--muted);اليوم • المنصات (في خلية واحدة) • أنواع المحتوى (في خلية واحدة) • اسم السيارة (تكتبه أنت)div
+        div style=margin-top10px;colorvar(--muted);ملاحظة في يوم الجمعة، “اسم السيارة” يفضل فاضي والصف يكون “جمعة مباركة”.div
+      div
+    `;
+    modalBackdrop.style.display = 'flex';
+  });
+  $('closeModalBtn').addEventListener('click', () = modalBackdrop.style.display = 'none');
+  modalBackdrop.addEventListener('click', (e) = {
+    if(e.target === modalBackdrop) modalBackdrop.style.display = 'none';
+  });
+
+   ---------------------------
+     Export Sheet
+  ----------------------------
+  function buildRows(){
+    const year = Number(yearSel.value);
+    const mi = Number(monthSel.value);
+    const dim = daysInMonth(year, mi);
+
+    const rows = [];
+     Header row (one row per day)
+    rows.push([اليوم, المنصات, أنواع المحتوى, اسم السيارة]);
+
+    const platformsCell = state.platforms.join(  );
+    const typesCell = state.types.join(  );
+
+    for(let d=1; d=dim; d++){
+      const date = new Date(year, mi, d);
+      const dayLabel = fmtDayLabel(year, mi, d);
+
+      if(isFriday(date)){
+        rows.push([dayLabel, platformsCell, جمعة مباركة, ]);
+      }else{
+        rows.push([dayLabel, platformsCell, typesCell, ]);
+      }
+    }
+    return rows;
+  }
+
+  function downloadXlsx(){
+    if(!window.XLSX){
+      alert(مكتبة XLSX لسه محمّلتش. جرّب تاني بعد ثانية.);
+      return;
+    }
+    const rows = buildRows();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+     Make header bold-ish by setting column widths & freeze top row
+    ws['!freeze'] = { xSplit 0, ySplit 1 };
+
+    ws['!cols'] = [
+      { wch 14 },
+      { wch 42 },
+      { wch 46 },
+      { wch 46 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, Plan);
+
+    const year = yearSel.value;
+    const mi = Number(monthSel.value);
+    const monthName = monthNamesAr[mi];
+    const prefix = (state.filePrefix  'MZJ-Content-Plan').trim()  'MZJ-Content-Plan';
+    const filename = `${prefix} - ${monthName} ${year}.xlsx`;
+
+    XLSX.writeFile(wb, filename);
+  }
+
+  $('downloadSheetBtn').addEventListener('click', downloadXlsx);
+
+   ---------------------------
+     Export Script (.gs)
+  ----------------------------
+  function generateScriptText(){
+    const year = Number(yearSel.value);
+    const mi = Number(monthSel.value);
+    const monthName = monthNamesAr[mi];
+
+    const platforms = JSON.stringify(state.platforms, null, 2);
+    const types = JSON.stringify(state.types, null, 2);
+
+    return `
+  MZJ Content Planner — Folder Builder
+  Generated ${new Date().toISOString()}
+ 
+  ✅ Reads rows from the sheet (columns)
+    اليوم  المنصات  أنواع المحتوى  اسم السيارة
+ 
+  ✅ Friday is automatic نوع المحتوى = جمعة مباركة
+ 
+  What this script creates in Drive
+  - Month folder (e.g. ${year}-${String(mi+1).padStart(2,'0')} ${monthName})
+  - For each day a folder يوم {DD}
+  - For each row with a car name
+     car folder - (الصور) and (ستوري)
+  - Ensures library folders exist in month root
+     (ريل مواصفات), (فيديو قصير), (جمعة مباركة - الصورستوري)
+ 
+  IMPORTANT
+  1) Put your ROOT_FOLDER_ID below (the main folder that holds your month folders)
+  2) Set SHEET_NAME if needed
+ 
+
+const ROOT_FOLDER_ID = PUT_ROOT_FOLDER_ID_HERE;
+const SHEET_NAME = Plan;  tab name
+const COL_DAY = 1;        A اليوم
+const COL_PLATFORMS = 2;   B المنصات (خلية واحدة)
+const COL_TYPES = 3;       C أنواع المحتوى (خلية واحدة)
+const COL_CAR = 4;         D اسم السيارة
+
+const DEFAULT_PLATFORMS = ${platforms};
+const DEFAULT_TYPES = ${types};
+
+function runMZJFolderBuilder() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(SHEET_NAME)  ss.getSheets()[0];
+  const values = sh.getDataRange().getValues();
+  if (values.length = 1) throw new Error(Sheet has no rows (except header).);
+
+  const root = DriveApp.getFolderById(ROOT_FOLDER_ID);
+
+  const monthFolderName = ${year}-${String(mi+1).padStart(2,'0')} ${monthName};
+  const monthFolder = getOrCreateFolder_(root, monthFolderName);
+
+   Ensure libraries
+  getOrCreateFolder_(monthFolder, ريل مواصفات);
+  getOrCreateFolder_(monthFolder, فيديو قصير);
+  const fridayFolder = getOrCreateFolder_(monthFolder, جمعة مباركة);
+  getOrCreateFolder_(fridayFolder, الصور);
+  getOrCreateFolder_(fridayFolder, ستوري);
+
+   Start from row 2 (skip header)
+  for (let i = 1; i  values.length; i++) {
+    const row = values[i];
+    const day = String(row[COL_DAY-1]  ).trim();
+    const platform = String(row[COL_PLATFORM-1]  ).trim();
+    const type = String(row[COL_TYPE-1]  ).trim();
+    const carName = String(row[COL_CAR-1]  ).trim();
+
+    if (!day  !platform  !type) continue;
+
+     Create day folder
+    const dd = dayToDD_(day);  from YYYY-MM-DD - DD
+    const dayFolder = getOrCreateFolder_(monthFolder, يوم  + dd);
+
+     Friday just ensure جمعة مباركة exists (already done)
+    if (type === جمعة مباركة) {
+      continue;
+    }
+
+     For non-Friday rows, car name is required to build folders
+    if (!carName) continue;
+
+    const carFolder = getOrCreateFolder_(dayFolder, carName);
+    getOrCreateFolder_(carFolder, الصور);
+    getOrCreateFolder_(carFolder, ستوري);
+  }
+
+  SpreadsheetApp.getUi().alert(تم إنشاءتحديث فولدرات الشهر بنجاح ✅n + monthFolderName);
+}
+
+function dayToDD_(dayStr) {
+   Accept YYYY-MM-DD (preferred)
+   Fallback any ending number
+  const m = dayStr.match((d{4})-(d{2})-(d{2}));
+  if (m) return m[3];
+  const m2 = dayStr.match((d{1,2})s$);
+  if (m2) return String(m2[1]).padStart(2,'0');
+  return ;
+}
+
+function getOrCreateFolder_(parent, name) {
+  const it = parent.getFoldersByName(name);
+  if (it.hasNext()) return it.next();
+  return parent.createFolder(name);
+}
+`;
+  }
+
+  function downloadScript(){
+    const text = generateScriptText();
+    const year = yearSel.value;
+    const mi = Number(monthSel.value);
+    const monthName = monthNamesAr[mi];
+    const prefix = (state.filePrefix  'MZJ-Content-Plan').trim()  'MZJ-Content-Plan';
+    const filename = `${prefix} - Script - ${monthName} ${year}.gs`;
+
+    const blob = new Blob([text], { type 'textplain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  $('downloadScriptBtn').addEventListener('click', downloadScript);
+
+   ---------------------------
+     Firebase loadsave defaults
+  ----------------------------
+  const fbDot = $('fbDot');
+  const fbTitle = $('fbTitle');
+  const fbSub = $('fbSub');
+
+  const firebaseConfig = {
+    apiKey AIzaSyCUniCf_A3fyZHbUN0REKhrFwhjYbojWIc,
+    authDomain mzj-content-planner.firebaseapp.com,
+    projectId mzj-content-planner,
+    storageBucket mzj-content-planner.firebasestorage.app,
+    messagingSenderId 702048592652,
+    appId 1702048592652web9b3377dacbe4c98b339f29,
+    measurementId G-J77RGXSL4R
+  };
+
+  let db = null;
+  let settingsRef = null;
+
+  function setFbStatus(kind, title, sub){
+    fbDot.classList.remove('ok','bad');
+    if(kind === 'ok') fbDot.classList.add('ok');
+    if(kind === 'bad') fbDot.classList.add('bad');
+    fbTitle.textContent = title;
+    fbSub.textContent = sub;
+  }
+
+  function initFirebase(){
+    try{
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      settingsRef = db.collection('settings').doc('content-planner');
+      setFbStatus('ok', 'Firebase', 'متصل ✅');
+      loadSettingsFromFirebase();
+    }catch(err){
+      console.error(err);
+      setFbStatus('bad', 'Firebase', 'فشل الاتصال');
+    }
+  }
+
+  async function loadSettingsFromFirebase(){
+    if(!settingsRef) return;
+    try{
+      const snap = await settingsRef.get();
+      if(snap.exists){
+        const data = snap.data()  {};
+        state.platforms = uniq(data.platforms  []);
+        state.types = uniq(data.contentTypes  []);
+        if(data.lastYear) yearSel.value = String(data.lastYear);
+        if(Number.isFinite(data.lastMonthIndex0)) monthSel.value = String(data.lastMonthIndex0);
+        state.year = Number(yearSel.value);
+        state.monthIndex0 = Number(monthSel.value);
+        renderChips();
+        ensureReadyState();
+        setFbStatus('ok','Firebase','تم تحميل الإعدادات');
+      }else{
+         first time seed with empty doc
+        await settingsRef.set({
+          platforms [],
+          contentTypes [],
+          lastYear Number(yearSel.value),
+          lastMonthIndex0 Number(monthSel.value),
+          updatedAt firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge true });
+        setFbStatus('ok','Firebase','جاهز');
+      }
+    }catch(err){
+      console.error(err);
+      setFbStatus('bad','Firebase','مشكلة في Firestore');
+    }
+  }
+
+  async function saveSettings(){
+    if(!settingsRef) return;
+    try{
+      await settingsRef.set({
+        platforms state.platforms,
+        contentTypes state.types,
+        lastYear Number(yearSel.value),
+        lastMonthIndex0 Number(monthSel.value),
+        updatedAt firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge true });
+      setFbStatus('ok','Firebase','تم الحفظ');
+    }catch(err){
+      console.error(err);
+      setFbStatus('bad','Firebase','فشل الحفظ');
+    }
+  }
+  const saveSettingsDebounced = debounce(saveSettings, 650);
+
+  $('resetDefaultsBtn').addEventListener('click', loadSettingsFromFirebase);
+
+   Initial state
+  state.year = Number(yearSel.value);
+  state.monthIndex0 = Number(monthSel.value);
+
+   init firebase after scripts are loaded
+  window.addEventListener('load', () = {
+    initFirebase();
+    ensureReadyState();
+  });
+
+})();
+script
+body
+html
