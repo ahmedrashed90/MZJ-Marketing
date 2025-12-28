@@ -1,5 +1,6 @@
 
 
+
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -532,34 +533,90 @@
 const path = require('path');
 const XLSX = require('xlsx');
 
+console.log("### MZJ COPY MODE v2 (manual copy) loaded ###");
+process.on('uncaughtException', (e)=>{ console.error("UNCAUGHT:", e); process.exit(1); });
+
 function safeName(s){
-  return String(s||'').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
+  return String(s||'').trim()
+    .replace(/[\\/:*?"<>|]/g,'-')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 function ensureDir(p){ if(!fs.existsSync(p)) fs.mkdirSync(p,{recursive:true}); }
 function splitList(s){ return String(s||'').split(',').map(x=>x.trim()).filter(Boolean); }
+function exists(p){ try{ return fs.existsSync(p); } catch{ return false; } }
 
-// Map column name (content type) to folder(s)
-function typeFolders(typeCol){
-  const t = String(typeCol||'').toLowerCase();
-  if(t.includes('بوست') || t.includes('صورة')) return ['صور','ستوري'];
-  if(t.includes('مواصفات') || t.includes('ريل')) return ['ريل مواصفات'];
-  if(t.includes('فيديو') || t.includes('قصير')) return ['فيديو قصير'];
-  return [safeName(typeCol)];
+function copyFile(src, dest){
+  if(!exists(src)) return false;
+  ensureDir(path.dirname(dest));
+  fs.copyFileSync(src, dest);
+  return true;
 }
 
-const root = path.join(__dirname,'OUTPUT');
-const planPath = path.join(__dirname,'plan.xlsx');
+// Manual recursive dir copy (avoid fs.cpSync crash on some Windows setups)
+function copyDirManual(src, dest){
+  if(!exists(src)) return false;
+  ensureDir(dest);
+  const entries = fs.readdirSync(src, { withFileTypes:true });
+  for(const ent of entries){
+    const s = path.join(src, ent.name);
+    const d = path.join(dest, ent.name);
+    if(ent.isDirectory()){
+      copyDirManual(s, d);
+    } else if(ent.isFile()){
+      copyFile(s, d);
+    }
+  }
+  return true;
+}
 
-if(!fs.existsSync(planPath)){
-  console.error('Missing plan.xlsx (ضع ملف الشيت باسم plan.xlsx داخل نفس المجلد).');
+function findVideoByCar(folder, carName){
+  if(!exists(folder)) return null;
+  const base = safeName(carName);
+  const exts = ['.mp4','.mov','.m4v','.avi'];
+  for(const ext of exts){
+    const p = path.join(folder, base + ext);
+    if(exists(p)) return p;
+  }
+  const files = fs.readdirSync(folder);
+  const hit = files.find(f => f.toLowerCase().startsWith(base.toLowerCase()));
+  return hit ? path.join(folder, hit) : null;
+}
+
+const ROOT = __dirname;
+const OUT = path.join(ROOT,'OUTPUT');
+const PLAN = path.join(ROOT,'plan.xlsx');
+const ASSETS = path.join(ROOT,'ASSETS');
+
+console.log("ROOT:", ROOT);
+console.log("PLAN exists:", exists(PLAN), "ASSETS exists:", exists(ASSETS));
+
+if(!exists(PLAN)){
+  console.error('Missing plan.xlsx (سمّي الشيت plan.xlsx وحطه جنب RUN.bat).');
+  process.exit(1);
+}
+if(!exists(ASSETS)){
+  console.error('Missing ASSETS folder (حط فولدر الداتا الحقيقي باسم ASSETS جنب RUN.bat).');
   process.exit(1);
 }
 
-const wb = XLSX.readFile(planPath);
+const wb = XLSX.readFile(PLAN);
 const ws = wb.Sheets[wb.SheetNames[0]];
 const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-ensureDir(root);
+ensureDir(OUT);
+
+const missing = [];
+const fixed = new Set(['اليوم','المنصات','مناسبة']);
+const contentTypeCols = rows.length ? Object.keys(rows[0]).filter(k => !fixed.has(k)) : [];
+console.log("Rows:", rows.length, "ContentTypeCols:", contentTypeCols);
+
+function guard(fn, tag){
+  try{ return fn(); } catch(e){
+    missing.push(`ERROR ${tag}: ${e.message || e}`);
+    return false;
+  }
+}
 
 for(const r of rows){
   const day = safeName(r['اليوم'] || '');
@@ -568,32 +625,74 @@ for(const r of rows){
   const platforms = splitList(r['المنصات'] || '');
   const note = safeName(r['مناسبة'] || '');
 
-  // Friday special
   if(note === 'جمعة مباركة'){
-    const base = path.join(root, day, 'جمعة مباركة');
-    ensureDir(path.join(base,'صور'));
-    ensureDir(path.join(base,'ستوري'));
+    const srcPhotos = path.join(ASSETS,'جمعة مباركة','الصور');
+    const srcStory  = path.join(ASSETS,'جمعة مباركة','ستوري');
+
+    const destBase  = path.join(OUT, day, 'جمعة مباركة');
+    const ok1 = guard(()=>copyDirManual(srcPhotos, path.join(destBase,'الصور')), `[${day}] جمعة مباركة/الصور`);
+    const ok2 = guard(()=>copyDirManual(srcStory,  path.join(destBase,'ستوري')), `[${day}] جمعة مباركة/ستوري`);
+
+    if(!ok1) missing.push(`[${day}] جمعة مباركة/الصور غير موجودة في ASSETS`);
+    if(!ok2) missing.push(`[${day}] جمعة مباركة/ستوري غير موجودة في ASSETS`);
     continue;
   }
 
-  // For each content type column (any column except fixed ones)
-  const fixed = new Set(['اليوم','المنصات','مناسبة']);
-  const contentTypeCols = Object.keys(r).filter(k => !fixed.has(k));
-
   for(const p of platforms){
-    const platBase = path.join(root, day, safeName(p));
+    const platBase = path.join(OUT, day, safeName(p));
+
     for(const col of contentTypeCols){
-      const car = safeName(r[col] || '') || 'اسم السيارة';
-      const folders = typeFolders(col);
-      for(const f of folders){
-        const target = path.join(platBase, f, car);
-        ensureDir(target);
+      const typeName = safeName(col);
+      const car = safeName(r[col] || '');
+      if(!car) continue;
+
+      if(typeName.includes('بوست') || typeName.includes('صورة')){
+        const srcCar = path.join(ASSETS,'بوست صورة', car);
+        const okA = guard(()=>copyDirManual(path.join(srcCar,'الصور'),  path.join(platBase,'بوست صورة', car,'الصور')),  `[${day}] ${p} بوست صورة ${car}/الصور`);
+        const okB = guard(()=>copyDirManual(path.join(srcCar,'ستوري'), path.join(platBase,'بوست صورة', car,'ستوري')), `[${day}] ${p} بوست صورة ${car}/ستوري`);
+        if(!okA) missing.push(`[${day}] ${p} بوست صورة (${car})/الصور مش موجودة`);
+        if(!okB) missing.push(`[${day}] ${p} بوست صورة (${car})/ستوري مش موجودة`);
+        continue;
       }
+
+      if(typeName.includes('مواصفات') || typeName.includes('ريل')){
+        const srcFolder = path.join(ASSETS,'ريل مواصفات');
+        const srcVid = findVideoByCar(srcFolder, car);
+        if(!srcVid){
+          missing.push(`[${day}] ${p} ريل مواصفات فيديو (${car}) مش موجود`);
+        } else {
+          const destVid = path.join(platBase,'ريل مواصفات', path.basename(srcVid));
+          guard(()=>copyFile(srcVid, destVid), `[${day}] ${p} ريل مواصفات copy ${car}`);
+        }
+        continue;
+      }
+
+      if(typeName.includes('فيديو') || typeName.includes('قصير')){
+        const srcFolder = path.join(ASSETS,'فيديو قصير');
+        const srcVid = findVideoByCar(srcFolder, car);
+        if(!srcVid){
+          missing.push(`[${day}] ${p} فيديو قصير فيديو (${car}) مش موجود`);
+        } else {
+          const destVid = path.join(platBase,'فيديو قصير', path.basename(srcVid));
+          guard(()=>copyFile(srcVid, destVid), `[${day}] ${p} فيديو قصير copy ${car}`);
+        }
+        continue;
+      }
+
+      const srcCustom = path.join(ASSETS, typeName, car);
+      const ok = guard(()=>copyDirManual(srcCustom, path.join(platBase, typeName, car)), `[${day}] ${p} custom ${typeName}/${car}`);
+      if(!ok) missing.push(`[${day}] ${p} نوع (${typeName}) (${car}) مش موجود في ASSETS`);
     }
   }
 }
 
-console.log('Done ✅  Created folders in OUTPUT');`;
+if(missing.length){
+  const reportPath = path.join(OUT,'_MISSING.txt');
+  fs.writeFileSync(reportPath, missing.join('\n'), 'utf8');
+  console.log(`Done ✅  Copied files. Missing report: OUTPUT/_MISSING.txt (${missing.length})`);
+} else {
+  console.log('Done ✅  Copied files with no missing items');
+}`;
 
   async function downloadWinZip(){
     if(typeof JSZip === 'undefined'){
@@ -612,7 +711,24 @@ console.log('Done ✅  Created folders in OUTPUT');`;
       dependencies: { xlsx: "^0.18.5" }
     };
     const readme = `تشغيل سكربت إنشاء الفولدرات (ويندوز)\r\n\r\n1) فك الضغط\r\n2) حمّل الشيت من الصفحة وسمّه plan.xlsx وحطه داخل نفس فولدر RUN.bat\r\n3) دبل كليك RUN.bat\r\n\r\nالمخرجات:\r\nOUTPUT\\YYYY-MM-DD\\Platform\\(صور/ستوري/ريل مواصفات/فيديو قصير)\\اسم السيارة\r\nويوم الجمعة:\r\nOUTPUT\\YYYY-MM-DD\\جمعة مباركة\\(صور/ستوري)\r\n`;
-    const bat = `@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho Installing dependencies...\r\nnpm install\r\nif %errorlevel% neq 0 (\r\n  echo npm install failed.\r\n  pause\r\n  exit /b 1\r\n)\r\necho Running...\r\nnode build-folders.js\r\npause\r\n`;
+    const bat = `@echo off
+cd /d %~dp0
+
+echo ===============================
+echo MZJ - RUN (COPY MODE v2)
+echo ===============================
+
+echo Node:
+call node -v
+
+call npm install
+
+echo Running build-folders.js ...
+call node --trace-uncaught build-folders.js
+echo ExitCode=%errorlevel%
+
+pause
+`;
 
     zip.file("package.json", JSON.stringify(packageJson, null, 2));
     zip.file("build-folders.js", builderJs);
