@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -54,6 +55,27 @@
     .color-row label{font-size:12px;color:var(--muted);margin-bottom:6px;display:block}
     .color-row select{width:100%;height:42px;border-radius:12px}
     .color-row .btn{white-space:nowrap}
+
+    .finish-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:860px){.finish-options-grid{grid-template-columns:1fr}}
+    .finish-checklist{
+      border:1px solid #e6ded6;border-radius:14px;background:#fff;min-height:120px;
+      max-height:240px;overflow:auto;padding:10px;display:grid;gap:8px;
+    }
+    .finish-check{
+      display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;
+      border:1px solid rgba(62,36,32,.08);background:#fff;
+    }
+    .finish-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--beige)}
+    .finish-empty{color:var(--muted);font-size:12px;padding:8px}
+    .dash-split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:980px){.dash-split{grid-template-columns:1fr}}
+    .dash-mini-table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    .dash-mini-table th{font-size:12px;color:var(--muted);text-align:right;padding:0 10px 6px}
+    .dash-mini-table td{padding:10px;background:#fff;border-top:1px solid #efe5dd;border-bottom:1px solid #efe5dd}
+    .dash-mini-table td:first-child{border-right:1px solid #efe5dd;border-radius:0 14px 14px 0}
+    .dash-mini-table td:last-child{border-left:1px solid #efe5dd;border-radius:14px 0 0 14px}
+
     :root{
       --brown:#3e2420;
       --beige:#bc8f74;
@@ -248,7 +270,7 @@
     /* Dashboard layout tweaks (single-row controls + agendas first) */
     .dash-controls{display:flex;flex-direction:column;gap:10px;align-items:stretch;flex:1;min-width:300px}
     .dash-controls-top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
-    (max-width:1100px){.dash-controls-top{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    @media(max-width:1100px){.dash-controls-top{grid-template-columns:repeat(2,minmax(0,1fr));}}
     .dash-controls-bottom{display:grid;grid-template-columns:1fr;gap:10px}
     /* Dashboard layout tweaks (single-row controls + agendas first) */
     .dash-controls{display:flex;flex-direction:column;gap:10px;align-items:stretch;flex:1;min-width:300px}
@@ -283,6 +305,8 @@
     .dash-pick input[type=checkbox]{width:18px;height:18px;accent-color:var(--beige)}
     .dash-pick .pick-title{font-weight:800}
     .dash-pick .pick-sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .dash-picks-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:980px){.dash-picks-two{grid-template-columns:1fr}}
     .dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
     @media(max-width:980px){.dash-grid{grid-template-columns:1fr}}
     .dash-card{background:var(--card);border:1px solid #efe5dd;border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
@@ -768,6 +792,47 @@
     }
     .t-sub{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
 
+    /* Dashboard split override (safe) */
+    .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+    #dashTasksCard{grid-column:1 / -1;}
+    @media(max-width:980px){.dash-grid{grid-template-columns:1fr !important;} #dashTasksCard{grid-column:auto;}}
+
+
+    /* Dashboard width fix: make monthly agenda/campaign blocks use full card width */
+    #dashAgendas,
+    #dashCampaigns{
+      display:grid !important;
+      grid-template-columns:1fr !important;
+      gap:14px !important;
+      align-items:stretch;
+    }
+    #dashAgendas .dash-ws,
+    #dashCampaigns .dash-ws{
+      width:100%;
+      max-width:100%;
+      margin:0;
+    }
+    .dash-card-body{
+      padding:16px 18px;
+    }
+    .dash-ws{
+      padding:16px;
+    }
+    .dash-table{
+      width:100%;
+      table-layout:fixed;
+    }
+    .dash-table th,
+    .dash-table td{
+      white-space:normal;
+      word-break:break-word;
+      vertical-align:top;
+    }
+    .dash-table th:nth-child(1), .dash-table td:nth-child(1){width:30%;}
+    .dash-table th:nth-child(2), .dash-table td:nth-child(2){width:24%;}
+    .dash-table th:nth-child(3), .dash-table td:nth-child(3){width:16%; text-align:center;}
+    .dash-table th:nth-child(4), .dash-table td:nth-child(4){width:30%;}
+
   </style>
 </head>
 
@@ -924,10 +989,18 @@
             </div>
 
             <div class="dash-controls-bottom">
-              <div class="dash-ctrl">
-                <label>اختيار الأجندات/الحملات لعرضها</label>
-                <div class="dash-pick" id="dashPick">
-                  <div class="muted" style="font-size:12px">اختر نوع العرض أولاً ليظهر لك قائمة الاختيار…</div>
+              <div class="dash-picks-two">
+                <div class="dash-ctrl">
+                  <label>اختيار الأجندات لعرضها</label>
+                  <div class="dash-pick" id="dashPickAgendas">
+                    <div class="muted" style="font-size:12px">جاري تحميل الأجندات…</div>
+                  </div>
+                </div>
+                <div class="dash-ctrl">
+                  <label>اختيار الحملات لعرضها</label>
+                  <div class="dash-pick" id="dashPickCampaigns">
+                    <div class="muted" style="font-size:12px">جاري تحميل الحملات…</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -955,6 +1028,27 @@
                 </div>
               </div>
               <div class="dash-card-body" id="dashCampaigns"> </div>
+            </div>
+
+            <div class="dash-card" id="dashTasksCard">
+              <div class="dash-card-head">
+                <div>
+                  <h3 class="dash-card-title">ملخص التاسكات</h3>
+                  <div class="muted" id="dashTasksMeta">التاسكات المنتهية والمتأخرة مع المسؤول</div>
+                </div>
+              </div>
+              <div class="dash-card-body">
+                <div class="dash-split">
+                  <div>
+                    <div class="muted" style="margin-bottom:8px;font-weight:900">التاسكات المنتهية</div>
+                    <div id="dashDoneTasks"></div>
+                  </div>
+                  <div>
+                    <div class="muted" style="margin-bottom:8px;font-weight:900">التاسكات المتأخرة</div>
+                    <div id="dashLateTasks"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1200,9 +1294,15 @@
             <label>اسم التاسك</label>
             <input id="taskTitle" type="text" placeholder="اكتب اسم التاسك..."/>
           </div>
-          <!-- تم إلغاء تاريخ التسليم حسب الطلب -->
-          <div style="display:none">
-            <label>تاريخ التسليم</label>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>تاريخ إنشاء التاسك</label>
+            <input id="taskCreatedDate" type="date"/>
+          </div>
+          <div>
+            <label>تاريخ تسليم التاسك</label>
             <input id="taskDue" type="date"/>
           </div>
         </div>
@@ -1259,8 +1359,10 @@
         <div class="grid2">
           <div><label>اسم التاسك</label><input id="dTitle" readonly/></div>
           <div><label>Unique Spec Key</label><input id="dSpecKey" readonly/></div>
-          <!-- تم إلغاء تاريخ التسليم حسب الطلب -->
-          <div style="display:none"><label>تاريخ التسليم</label><input id="dDue" readonly/></div>
+        </div>
+        <div class="grid2">
+          <div><label>تاريخ إنشاء التاسك</label><input id="dCreatedDate" readonly/></div>
+          <div><label>تاريخ تسليم التاسك</label><input id="dDue" readonly/></div>
         </div>
         <div class="grid2">
           <div><label>المسؤول</label><input id="dAssignee" readonly/></div>
@@ -1325,8 +1427,28 @@
         <label>Unique Spec Key</label>
         <input id="fmSpecKey" readonly/>
 
-        <div class="hint" style="color:var(--muted);margin-top:10px">
-          سيتم إنهاء التاسك داخل الـ Workspace فقط — بدون أي علاقة بالمونتاج أو الألوان وبدون أي تحديث على Tab Stock.
+        <div class="grid2" style="margin-top:12px">
+          <div>
+            <label>شهر المونتاج</label>
+            <select id="fmMonth">
+              <option value="">— اختر الشهر —</option>
+            </select>
+          </div>
+          <div>
+            <label>الألوان المستخدمة</label>
+            <div class="hint" style="color:var(--muted);margin-top:10px">يمكن اختيار أكثر من لون داخلي أو خارجي.</div>
+          </div>
+        </div>
+
+        <div class="finish-options-grid" style="margin-top:12px">
+          <div>
+            <label>الألوان الخارجية</label>
+            <div id="fmExtColors" class="finish-checklist"></div>
+          </div>
+          <div>
+            <label>الألوان الداخلية</label>
+            <div id="fmIntColors" class="finish-checklist"></div>
+          </div>
         </div>
       </div>
       <div class="m-foot">
@@ -1640,13 +1762,17 @@
       return SOLD_STATES_SPEC.some(st => placeRaw.includes(st));
     }
 
-    // يجهز كل الـ Spec Keys من المخزون (بدون الوكالة/المباع) ثم يطبق فلتر "غير معمول لها مونتاج"
+    // يجهز كل الـ Spec Keys من المخزون (بدون الوكالة/المباع) ويعرضها كلها للاختيار
     function setSpecKeyOptionsFromStock(stockArr){
       try{
         const set = new Set();
         for(const r of (Array.isArray(stockArr)?stockArr:[])){
           if(isSoldRowForSpec(r)) continue;
-          const key = buildSpecKeyNoColors(r);
+          const key = buildSpecKeyNoColors({
+            car: r.car ?? r["السيارة"],
+            variant: r.variant ?? r["البيان"],
+            modelYear: r.modelYear ?? r["الموديل"],
+          });
           if(key && key !== "- | - | -") set.add(key);
         }
         SPEC_KEY_ALL = Array.from(set).sort((a,b)=> a.localeCompare(b,"ar"));
@@ -1656,20 +1782,10 @@
       }
     }
 
-    // يظهر فقط السيارات اللي "لسة مش معمولها مونتاج" حسب stock_tasks في مشروع workspace
     function applySpecKeyNotMontagedFilter(){
       try{
-        // لو مش لاقيين بيانات مهام لسه، اعرض الكل مؤقتًا
         const list = Array.isArray(SPEC_KEY_ALL) ? SPEC_KEY_ALL : [];
-        if(!STOCK_TASKS_MAP || STOCK_TASKS_MAP.size === 0){
-          SPEC_KEY_OPTIONS = list;
-        }else{
-          SPEC_KEY_OPTIONS = list.filter(k=>{
-            const t = STOCK_TASKS_MAP.get(String(k)) || {};
-            // يعتبر "تم المونتاج" فقط لو montage == نعم
-            return String(t.montage || "").trim() !== "نعم";
-          });
-        }
+        SPEC_KEY_OPTIONS = list;
         renderSpecKeyDatalist();
       }catch(e){
         console.warn("applySpecKeyNotMontagedFilter error", e);
@@ -1737,6 +1853,27 @@ function initSpecKeySource(){
     }
 
     function escapeAttr(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;"); }
+    function todayYmd(){
+      const d = new Date();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${d.getFullYear()}-${m}-${day}`;
+    }
+    function monthNameFromDateValue(v){
+      const s = String(v||'').trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+      const mm = Number(s.slice(5,7));
+      return MONTHS_AR[mm-1] || '';
+    }
+    function isTaskLate(task){
+      const due = String(task?.due || '').trim();
+      if(!due || isTaskDone(task)) return false;
+      return due < todayYmd();
+    }
+    function fmtTaskDate(v){
+      const s = String(v||'').trim();
+      return s || '—';
+    }
 function initials(name){
       const n = (name||"M").trim();
       const parts = n.split(/\s+/).filter(Boolean);
@@ -1793,6 +1930,7 @@ function initials(name){
         'تصوير': r.photo||'',
         'مونتاج': r.montage||'',
         'تفاصيل المونتاج': r.montageDetails||'',
+        'شهور المونتاج': r.montageMonths||'',
         'داخل الأجندة': r.inAgenda||'',
         'الشهر': r.agendaMonth||'',
         'السنة': r.agendaYear||''
@@ -3180,6 +3318,7 @@ function openDailyTaskModal(ctx){
         {k:'photo',label:'تصوير', w:140},
         {k:'montage',label:'مونتاج', w:140},
         {k:'montageDetails',label:'تفاصيل المونتاج', w:240},
+        {k:'montageMonths',label:'شهور المونتاج', w:220},
         {k:'inAgenda',label:'داخل الأجندة', w:170},
         {k:'agendaMonth',label:'الشهر', w:160},
         {k:'agendaYear',label:'السنة', w:120},
@@ -3199,6 +3338,7 @@ function openDailyTaskModal(ctx){
           photo: saved.photo || '',
           montage: saved.montage || '',
           montageDetails: saved.montageDetails || '',
+          montageMonths: Array.isArray(saved.montageMonths) ? saved.montageMonths.join('، ') : '',
           inAgenda: saved.inAgenda || '',
           agendaMonth: saved.agendaMonth || '',
           agendaYear: saved.agendaYear || ''
@@ -3210,6 +3350,7 @@ function openDailyTaskModal(ctx){
         const photo = saved.photo || '';
         const montage = saved.montage || '';
         const montageDetails = saved.montageDetails || '';
+        const montageMonths = Array.isArray(saved.montageMonths) ? saved.montageMonths.join('، ') : '';
         const inAgenda = saved.inAgenda || '';
         const agendaMonth = saved.agendaMonth || '';
         const agendaYear = saved.agendaYear || '';
@@ -3242,6 +3383,7 @@ function openDailyTaskModal(ctx){
                 ${montageDetailsOptions(montageDetails)}
               </select>
             </td>
+            <td class="wrap">${escapeHtml(montageMonths || '-')}</td>
             <td>
               <select class="stock-ctrl" data-field="inAgenda">${yesNoOptions(inAgenda)}</select>
             </td>
@@ -3471,27 +3613,24 @@ function openDailyTaskModal(ctx){
       return { yy, mm };
     }
 
-    function dashRenderPicker(items, precheckedIds=[]){
-      const pick = $('dashPick');
+    function dashRenderPicker(targetId, items, precheckedIds=[]){
+      const pick = $(targetId);
       if(!pick) return;
       if(!items.length){
-        pick.innerHTML = `<div class="dash-empty">لا توجد عناصر مطابقة للشهر المحدد.</div>`;
+        pick.innerHTML = `<div class="dash-empty">لا توجد عناصر.</div>`;
         return;
       }
       const set = new Set(precheckedIds);
       pick.innerHTML = items.map(ws=>{
-        const metaParts=[];
-        if(ws.type==='campaign'){
-          if(ws.startDate || ws.endDate) metaParts.push(`الفترة: ${ws.startDate||'—'} → ${ws.endDate||'—'}`);
-        }
-        const cols = Array.isArray(ws.columns) ? ws.columns.length : 0;
-        metaParts.push(`أعمدة: ${cols}`);
+        const contentText = ws.type==='campaign'
+          ? stripHtml(ws.description || '')
+          : (Array.isArray(ws.columns) ? ws.columns.join('، ') : '');
         return `
           <label class="pick-row">
-            <input type="checkbox" class="dashPickCb" value="${escapeAttr(ws.id)}" ${set.has(ws.id)?'checked':''} />
+            <input type="checkbox" class="dashPickCb" data-type="${escapeAttr(ws.type||'')}" value="${escapeAttr(ws.id)}" ${set.has(ws.id)?'checked':''} />
             <div style="min-width:0">
               <div class="pick-title">${escapeHtml(ws.name||'—')}</div>
-              <div class="pick-sub">${escapeHtml(metaParts.join(' | '))}</div>
+              <div class="pick-sub">${escapeHtml(contentText || '—')}</div>
             </div>
           </label>`;
       }).join('');
@@ -3507,8 +3646,9 @@ function openDailyTaskModal(ctx){
     }
 
     function dashCollectCheckedIds(){
-      const cbs = Array.from(document.querySelectorAll('.dashPickCb'));
-      return cbs.filter(cb=> cb.checked).map(cb=> cb.value);
+      const agendaIds = Array.from(document.querySelectorAll('#dashPickAgendas .dashPickCb')).filter(cb=> cb.checked).map(cb=> cb.value);
+      const campaignIds = Array.from(document.querySelectorAll('#dashPickCampaigns .dashPickCb')).filter(cb=> cb.checked).map(cb=> cb.value);
+      return { agendaIds, campaignIds, ids:[...agendaIds, ...campaignIds] };
     }
 
     async function dashLoadTasksForWorkspaces(ids){
@@ -3547,6 +3687,36 @@ function openDailyTaskModal(ctx){
       return false;
     }
 
+    function dashRenderTaskSummary(containerId, items, emptyText){
+      const el = $(containerId);
+      if(!el) return;
+      if(!items.length){
+        el.innerHTML = `<div class="dash-empty">${escapeHtml(emptyText)}</div>`;
+        return;
+      }
+      el.innerHTML = `
+        <table class="dash-mini-table">
+          <thead>
+            <tr>
+              <th>التاسك</th>
+              <th>Unique Spec Key</th>
+              <th>المسؤول</th>
+              <th>التاريخ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(t=>`
+              <tr>
+                <td>${escapeHtml(t.title || '—')}</td>
+                <td>${escapeHtml(t.specKey || '—')}</td>
+                <td>${escapeHtml(t.assigneeName || '—')}</td>
+                <td>${escapeHtml(isTaskDone(t) ? (t.finishMonth || t.due || '—') : (t.due || '—'))}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
     function dashRenderWorkspacesBlock(containerId, workspaces, tasks){
       const el = $(containerId);
       if(!el) return;
@@ -3576,7 +3746,7 @@ function openDailyTaskModal(ctx){
               <td style="font-weight:900">${escapeHtml(t.specKey||'—')}</td>
               <td class="dash-status">${status}</td>
               <td>${escapeHtml(t.assigneeName||'—')}</td>
-              <td>${escapeHtml(t.description||'')}</td>
+              
             </tr>`;
         }).join('');
 
@@ -3588,22 +3758,22 @@ function openDailyTaskModal(ctx){
                 <th>Unique Spec Key</th>
                 <th>الحالة</th>
                 <th>المسؤول</th>
-                <th>ملاحظات</th>
+                
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>` : `<div class="dash-empty" style="margin-top:10px">لا توجد تاسكات داخل هذا العنصر.</div>`;
 
-        const metaParts=[];
-        if(ws.type==='campaign') metaParts.push(`الفترة: ${ws.startDate||'—'} → ${ws.endDate||'—'}`);
-        metaParts.push(`أعمدة: ${cols.length}`);
+        const contentText = ws.type==='campaign'
+          ? stripHtml(ws.description || '')
+          : (Array.isArray(ws.columns) ? ws.columns.join('، ') : '');
 
         return `
           <div class="dash-ws">
             <div class="dash-ws-head">
               <div style="min-width:0">
                 <div class="dash-ws-name">${escapeHtml(ws.name||'—')}</div>
-                <div class="dash-ws-meta">${escapeHtml(metaParts.join(' | '))}</div>
+                <div class="dash-ws-meta">${escapeHtml(contentText || '—')}</div>
               </div>
               <div class="dash-badges">
                 <div class="dash-badge">إجمالي: ${list.length}</div>
@@ -3622,20 +3792,29 @@ function openDailyTaskModal(ctx){
       const limit = Number(String($('dashLimit')?.value || '').trim() || 0);
 
       // Build selected ids from picker (if empty, auto pick defaults)
-      let ids = dashCollectCheckedIds();
+      const picked = dashCollectCheckedIds();
+      let agendaIds = picked.agendaIds || [];
+      let campaignIds = picked.campaignIds || [];
+      let ids = picked.ids || [];
       if(!ids.length){
         const defaults = dashComputeDefaultSelection(mode, yy, mm);
         ids = defaults.map(x=> x.id);
+        agendaIds = defaults.filter(x=> x.type==='agenda').map(x=> x.id);
+        campaignIds = defaults.filter(x=> x.type==='campaign').map(x=> x.id);
       }
 
       // apply optional limit
-      if(limit>0) ids = ids.slice(0, limit);
+      if(limit>0){
+        agendaIds = agendaIds.slice(0, limit);
+        campaignIds = campaignIds.slice(0, limit);
+        ids = [...agendaIds, ...campaignIds];
+      }
 
       DASH_LAST_SELECTION = { mode, year: yy, month: mm, ids: [...ids] };
 
       // split selected workspaces by type (keep order)
-      const selectedAgendas = DASH_WS_ALL.agenda.filter(w=> ids.includes(w.id));
-      const selectedCampaigns = DASH_WS_ALL.campaign.filter(w=> ids.includes(w.id));
+      const selectedAgendas = DASH_WS_ALL.agenda.filter(w=> agendaIds.includes(w.id));
+      const selectedCampaigns = DASH_WS_ALL.campaign.filter(w=> campaignIds.includes(w.id));
 
       // fetch tasks once
       const tasks = await dashLoadTasksForWorkspaces(ids);
@@ -3647,12 +3826,19 @@ function openDailyTaskModal(ctx){
       $('dashAgendasMeta').textContent = `${selectedAgendas.length} أجندة`;
       $('dashCampaignsMeta').textContent = `${selectedCampaigns.length} حملة`;
 
+      const doneTasks = tasks.filter(isTaskDone).slice(0, 20);
+      const lateTasks = tasks.filter(isTaskLate).slice(0, 20);
+      $('dashTasksMeta').textContent = `منتهي: ${doneTasks.length} | متأخر: ${lateTasks.length}`;
+
       // show/hide cards based on mode
       $('dashAgendasCard').style.display = (mode==='campaign') ? 'none' : '';
       $('dashCampaignsCard').style.display = (mode==='agenda') ? 'none' : '';
+      $('dashTasksCard').style.display = '';
 
       dashRenderWorkspacesBlock('dashAgendas', selectedAgendas, tasks);
       dashRenderWorkspacesBlock('dashCampaigns', selectedCampaigns, tasks);
+      dashRenderTaskSummary('dashDoneTasks', doneTasks, 'لا توجد تاسكات منتهية.');
+      dashRenderTaskSummary('dashLateTasks', lateTasks, 'لا توجد تاسكات متأخرة.');
     }
 
     function dashUpdatePickerByMode(){
@@ -3660,16 +3846,19 @@ function openDailyTaskModal(ctx){
       const {yy, mm} = dashGetSelectedMonthYear();
       const limit = Number(String($('dashLimit')?.value || '').trim() || 0);
 
-      let defaults = dashComputeDefaultSelection(mode, yy, mm);
-      if(limit>0) defaults = defaults.slice(0, limit);
+      let agendas = DASH_WS_ALL.agenda.filter(ws=> isAgendaInMonth(ws, yy, mm));
+      let campaigns = DASH_WS_ALL.campaign.filter(ws=> isCampaignInMonth(ws, yy, mm));
 
-      // items to show in picker
-      let items = [];
-      if(mode==='agenda') items = DASH_WS_ALL.agenda.filter(ws=> isAgendaInMonth(ws, yy, mm));
-      else if(mode==='campaign') items = DASH_WS_ALL.campaign.filter(ws=> isCampaignInMonth(ws, yy, mm));
-      else items = [...DASH_WS_ALL.agenda.filter(ws=> isAgendaInMonth(ws, yy, mm)), ...DASH_WS_ALL.campaign.filter(ws=> isCampaignInMonth(ws, yy, mm))];
+      if(limit>0){
+        agendas = agendas.slice(0, limit);
+        campaigns = campaigns.slice(0, limit);
+      }
 
-      dashRenderPicker(items, defaults.map(x=>x.id));
+      if(mode==='agenda') campaigns = [];
+      if(mode==='campaign') agendas = [];
+
+      dashRenderPicker('dashPickAgendas', agendas, agendas.map(x=>x.id));
+      dashRenderPicker('dashPickCampaigns', campaigns, campaigns.map(x=>x.id));
     }
 
     async function initDashboardHome(){
@@ -3906,7 +4095,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
             card.className = "task-card";
 
             const assignee = t.assigneeName || "—";
-            const due = t.due || "—";
+            const due = t.due || t.taskCreatedDate || "—";
             const specKey = t.specKey || "—";
 
             card.innerHTML = `
@@ -4111,7 +4300,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     const taskSpecKey = $("taskSpecKey");
     const taskTitle = $("taskTitle");
     const taskDesc = $("taskDesc");
-    // تم إلغاء تاريخ التسليم
+    const taskCreatedDate = $("taskCreatedDate");
     const taskDue = $("taskDue");
     const taskAssignee = $("taskAssignee");
     const taskColumn = $("taskColumn");
@@ -4210,6 +4399,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         taskSpecKey.value = "";
           taskTitle.value = "";
         taskDesc.value = "";
+        taskCreatedDate.value = todayYmd();
         taskDue.value = "";
         taskAssignee.value = "";
 
@@ -4231,7 +4421,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         taskSpecKey.value = CURRENT_TASK.specKey || "";
           taskTitle.value = CURRENT_TASK.title || "";
         taskDesc.value = CURRENT_TASK.description || "";
-        taskDue.value = "";
+        taskCreatedDate.value = CURRENT_TASK.taskCreatedDate || CURRENT_TASK.createdDate || "";
+        taskDue.value = CURRENT_TASK.due || "";
         taskAssignee.value = CURRENT_TASK.assigneeUid || "";
 
         
@@ -4258,8 +4449,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       const titleRaw = (taskTitle?.value||"").trim();
       const title = titleRaw || (TASK_MODE==="create" ? "" : (CURRENT_TASK?.title||"").trim()) || specKey;
       const description = (taskDesc.value||"").trim() || null;
-      // تم إلغاء تاريخ التسليم
-      const due = null;
+      const taskCreatedDateValue = (taskCreatedDate.value||"").trim() || todayYmd();
+      const due = (taskDue.value||"").trim() || null;
       const assigneeUid = taskAssignee.value || null;
       const assigneeObj = USERS.find(u=> u.uid===assigneeUid);
       const assigneeName = assigneeObj?.name || null;
@@ -4297,7 +4488,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         title,
         specKey: hasSpecKey ? specKey : null,
         description,
-        // due removed
+        taskCreatedDate: taskCreatedDateValue,
+        due,
         assigneeUid,
         assigneeName
       };
@@ -4344,7 +4536,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
       $("dTitle").value = task.title || "";
       $("dSpecKey").value = task.specKey || "";
-      $("dDue").value = "";
+      $("dCreatedDate").value = task.taskCreatedDate || task.createdDate || "—";
+      $("dDue").value = task.due || "—";
       $("dAssignee").value = task.assigneeName || "—";
       $("dColumn").value = task.column || "";
       $("dDesc").value = task.description || "";
@@ -4408,6 +4601,36 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
     const finishModal = $("finishModal");
     const fmSpecKey = $("fmSpecKey");
+    const fmMonth = $("fmMonth");
+    const fmExtColors = $("fmExtColors");
+    const fmIntColors = $("fmIntColors");
+
+    function fillFinishMonths(){
+      if(!fmMonth) return;
+      fmMonth.innerHTML = `<option value="">— اختر الشهر —</option>` + MONTHS_AR.map(m=>`<option value="${escapeAttr(m)}">${escapeHtml(m)}</option>`).join("");
+    }
+    fillFinishMonths();
+
+    function buildFinishChecklist(target, items, selectedValues){
+      if(!target) return;
+      const set = new Set((selectedValues||[]).map(v=> String(v||"").trim()).filter(Boolean));
+      const arr = Array.isArray(items) ? items : [];
+      if(!arr.length){
+        target.innerHTML = `<div class="finish-empty">لا توجد ألوان متاحة.</div>`;
+        return;
+      }
+      target.innerHTML = arr.map((v,idx)=>`
+        <label class="finish-check">
+          <input type="checkbox" value="${escapeAttr(v)}" ${set.has(String(v).trim()) ? 'checked' : ''}/>
+          <span>${escapeHtml(v)}</span>
+        </label>
+      `).join("");
+    }
+
+    function getCheckedValues(container){
+      if(!container) return [];
+      return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(x=> String(x.value||'').trim()).filter(Boolean);
+    }
 
     function uniqSorted(arr){
       return Array.from(new Set((arr||[]).map(v=>String(v||"").trim()).filter(Boolean)))
@@ -4458,7 +4681,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     function openFinishModalForTask(task){
       if(!task?.id) return;
       const key = String(task.specKey||"").trim();
+      const colors = getColorsForSpecKey(key);
       fmSpecKey.value = key;
+      fmMonth.value = task.finishMonth || monthNameFromDateValue(task.due || task.taskCreatedDate) || monthNameFromDateValue(todayYmd()) || "";
+      buildFinishChecklist(fmExtColors, colors.ext, task.finishExtColors || []);
+      buildFinishChecklist(fmIntColors, colors.int, task.finishIntColors || []);
       finishModal.classList.add("show");
     }
     function closeFinishModal(){ finishModal.classList.remove("show"); }
@@ -4476,12 +4703,16 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     $("finishSave").addEventListener("click", async ()=>{
       if(!CURRENT_TASK?.id) return toast("⚠️ لا يوجد Task");
 
-      // Update task as done داخل الـ Workspace فقط (بدون مونتاج/ألوان/Stock)
+      const selectedMonth = String(fmMonth?.value || "").trim();
+      const selectedExtColors = getCheckedValues(fmExtColors);
+      const selectedIntColors = getCheckedValues(fmIntColors);
+
+      if(!selectedMonth) return toast("اختر شهر المونتاج");
+
       try{
-        // Move task to a new green column derived from its current column
         const prevCol = String(CURRENT_TASK.column || "قائمة");
         const doneCol = /تم الانتهاء/.test(prevCol) ? prevCol : `${prevCol} — تم الانتهاء`;
-        // Ensure the column exists on the workspace board
+
         try{
           const cols = Array.isArray(CURRENT_WORKSPACE?.columns) ? CURRENT_WORKSPACE.columns.slice() : ["قائمة"];
           if(!cols.includes(doneCol)){
@@ -4495,8 +4726,26 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           status: "تم الانتهاء",
           column: doneCol,
           doneAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          finishMonth: selectedMonth,
+          finishExtColors: selectedExtColors,
+          finishIntColors: selectedIntColors
         });
+
+        const specKey = String(CURRENT_TASK.specKey || '').trim();
+        if(specKey){
+          const prevMeta = STOCK_TASKS_MAP.get(specKey) || { specKey };
+          const prevMonths = Array.isArray(prevMeta.montageMonths) ? prevMeta.montageMonths : [];
+          const nextMonths = Array.from(new Set([...prevMonths, selectedMonth]));
+          const patch = {
+            specKey,
+            montage: "نعم",
+            montageMonths: nextMonths,
+            updatedAt: serverTimestamp()
+          };
+          STOCK_TASKS_MAP.set(specKey, { ...prevMeta, ...patch });
+          await setDoc(doc(db, "stock_tasks", stockTaskDocId(specKey)), patch, { merge:true });
+        }
       }catch(e){
         console.error(e);
         return toast("⚠️ فشل إنهاء التاسك (صلاحيات/قواعد)");
@@ -4505,6 +4754,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       toast("✅ تم إنهاء التاسك");
       closeFinishModal();
       closeDetail();
+      if(MODE==="stock") renderStockTab();
     });
   </script>
 </body>
