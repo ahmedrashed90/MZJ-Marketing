@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -3687,6 +3688,21 @@ function openDailyTaskModal(ctx){
       return false;
     }
 
+    function resolveUserDisplayName(task){
+      const directName = String(task?.assigneeName || '').trim();
+      const directUid = String(task?.assigneeUid || '').trim();
+      const looksLikeEmail = /@/.test(directName);
+      if(directUid){
+        const byUid = USERS.find(u => String(u.uid||'').trim() === directUid);
+        if(byUid?.name) return byUid.name;
+      }
+      if(looksLikeEmail){
+        const byEmail = USERS.find(u => String(u.email||'').trim().toLowerCase() === directName.toLowerCase());
+        if(byEmail?.name) return byEmail.name;
+      }
+      return directName || '—';
+    }
+
     function dashRenderTaskSummary(containerId, items, emptyText){
       const el = $(containerId);
       if(!el) return;
@@ -3709,7 +3725,7 @@ function openDailyTaskModal(ctx){
               <tr>
                 <td>${escapeHtml(t.title || '—')}</td>
                 <td>${escapeHtml(t.specKey || '—')}</td>
-                <td>${escapeHtml(t.assigneeName || '—')}</td>
+                <td>${escapeHtml(resolveUserDisplayName(t))}</td>
                 <td>${escapeHtml(isTaskDone(t) ? (t.finishMonth || t.due || '—') : (t.due || '—'))}</td>
               </tr>
             `).join('')}
@@ -3745,7 +3761,7 @@ function openDailyTaskModal(ctx){
               <td>${escapeHtml(t.column||'—')}</td>
               <td style="font-weight:900">${escapeHtml(t.specKey||'—')}</td>
               <td class="dash-status">${status}</td>
-              <td>${escapeHtml(t.assigneeName||'—')}</td>
+              <td>${escapeHtml(resolveUserDisplayName(t))}</td>
               
             </tr>`;
         }).join('');
