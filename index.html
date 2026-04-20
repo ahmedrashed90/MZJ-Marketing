@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -4127,7 +4128,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
             const card = document.createElement("div");
             card.className = "task-card";
 
-            const assignee = t.assigneeName || "—";
+            const assignee = resolveUserDisplayName(t);
             const due = t.due || t.taskCreatedDate || "—";
             const specKey = t.specKey || "—";
 
@@ -4571,7 +4572,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       $("dSpecKey").value = task.specKey || "";
       $("dCreatedDate").value = task.taskCreatedDate || task.createdDate || "—";
       $("dDue").value = task.due || "—";
-      $("dAssignee").value = task.assigneeName || "—";
+      $("dAssignee").value = resolveUserDisplayName(task);
       $("dColumn").value = task.column || "";
       $("dDesc").value = task.description || "";
 
