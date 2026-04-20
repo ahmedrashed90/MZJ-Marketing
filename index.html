@@ -1907,6 +1907,14 @@ function initSpecKeySource(){
       if(hasSpecReel) return 'ريل مواصفات فقط';
       return '';
     }
+    function hasPhotosInMontageDetails(v){
+      const s = normalizeArabicText(v || '');
+      return s.includes('صور');
+    }
+    function hasSpecReelInMontageDetails(v){
+      const s = normalizeArabicText(v || '');
+      return s.includes('ريل مواصفات');
+    }
     function isTaskLate(task){
       const due = String(task?.due || '').trim();
       if(!due || isTaskDone(task)) return false;
@@ -3383,11 +3391,11 @@ function openDailyTaskModal(ctx){
       });
 
       if(STOCK_VIEW_FILTER === 'missingMontage'){
-        rows = rows.filter(r => !String(r.montageMonths || '').trim());
+        rows = rows.filter(r => String(r.montage || '').trim() === 'لا');
       }else if(STOCK_VIEW_FILTER === 'missingPhotos'){
-        rows = rows.filter(r => !isYes(r.photo));
+        rows = rows.filter(r => !hasPhotosInMontageDetails(r.montageDetails));
       }else if(STOCK_VIEW_FILTER === 'missingSpecReel'){
-        rows = rows.filter(r => !isYes(r.specReel));
+        rows = rows.filter(r => !hasSpecReelInMontageDetails(r.montageDetails));
       }
 
       rows.sort((a,b)=> a.specKey.localeCompare(b.specKey,'ar',{numeric:true,sensitivity:'base'}));
