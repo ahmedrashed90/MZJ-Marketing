@@ -6,6 +6,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1083,6 +1084,7 @@
             </div>
           </div>
           <div class="actions">
+            <button class="btn secondary sm" id="btnBoardMissingMontage" type="button" style="display:none">🚗 سيارات بدون شهور مونتاج</button>
             <button class="btn ghost sm" id="btnEditBoard" type="button">✏️ تعديل</button>
             <button class="btn danger sm" id="btnDeleteBoard" type="button">🗑️ حذف</button>
           </div>
@@ -1129,6 +1131,10 @@
             <strong>stock</strong>
             <span class="muted">الإجمالي: <b id="stockCount">0</b> سيارة</span>
             <input id="stockSearch" class="inp" style="min-width:260px" placeholder="بحث داخل stock (Unique Spec Key)…" />
+            <button class="btn secondary sm" id="btnStockFilterAll" type="button">الكل</button>
+            <button class="btn secondary sm" id="btnStockFilterMissingMontage" type="button">بدون شهور مونتاج</button>
+            <button class="btn secondary sm" id="btnStockFilterMissingPhotos" type="button">بدون صور</button>
+            <button class="btn secondary sm" id="btnStockFilterMissingSpecReel" type="button">بدون ريل مواصفات</button>
             <button class="btn secondary sm" id="btnStockExport" type="button">⬇️ تصدير Excel</button>
           </div>
         </div>
@@ -1438,9 +1444,13 @@
             </select>
           </div>
           <div>
-            <label>الألوان المستخدمة</label>
-            <div class="hint" style="color:var(--muted);margin-top:10px">يمكن اختيار أكثر من لون داخلي أو خارجي.</div>
+            <label>سنة الأجندة / المونتاج</label>
+            <input id="fmYear" type="number" min="2000" max="2100" placeholder="YYYY"/>
           </div>
+        </div>
+        <div>
+          <label>الألوان المستخدمة</label>
+          <div class="hint" style="color:var(--muted);margin-top:10px">يمكن اختيار أكثر من لون داخلي أو خارجي.</div>
         </div>
 
         <div class="finish-options-grid" style="margin-top:12px">
@@ -1868,6 +1878,35 @@ function initSpecKeySource(){
       const mm = Number(s.slice(5,7));
       return MONTHS_AR[mm-1] || '';
     }
+    function monthToNumeric(v){
+      const s = String(v||'').trim();
+      if(!s) return '';
+      const idx = MONTHS_AR.indexOf(s);
+      if(idx >= 0) return String(idx + 1);
+      if(/^\d{1,2}$/.test(s)) return String(Number(s));
+      return s;
+    }
+    function formatMontageMonthsList(arr){
+      if(!Array.isArray(arr) || !arr.length) return '';
+      return arr.map(monthToNumeric).filter(Boolean).join('، ');
+    }
+    function currentYearStr(){
+      return String(new Date().getFullYear());
+    }
+    function yearFromDateValue(v){
+      const s = String(v||'').trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+      return s.slice(0,4);
+    }
+    function isYes(v){ return String(v||'').trim() === 'نعم'; }
+    function deriveMontageDetails(meta){
+      const hasPhotos = isYes(meta?.photo);
+      const hasSpecReel = isYes(meta?.specReel);
+      if(hasPhotos && hasSpecReel) return 'صور + ريل مواصفات';
+      if(hasPhotos) return 'صور فقط';
+      if(hasSpecReel) return 'ريل مواصفات فقط';
+      return '';
+    }
     function isTaskLate(task){
       const due = String(task?.due || '').trim();
       if(!due || isTaskDone(task)) return false;
@@ -1894,7 +1933,34 @@ function initials(name){
 
     // Last rendered rows for Excel export (stock tab)
     let __LAST_STOCK_ROWS = [];
+    let STOCK_VIEW_FILTER = "all";
 
+    function setStockViewFilter(mode){
+      STOCK_VIEW_FILTER = mode || "all";
+      ["btnStockFilterAll","btnStockFilterMissingMontage","btnStockFilterMissingPhotos","btnStockFilterMissingSpecReel"].forEach((id)=>{
+        const el = $(id);
+        if(!el) return;
+        const active =
+          (id==="btnStockFilterAll" && STOCK_VIEW_FILTER==="all") ||
+          (id==="btnStockFilterMissingMontage" && STOCK_VIEW_FILTER==="missingMontage") ||
+          (id==="btnStockFilterMissingPhotos" && STOCK_VIEW_FILTER==="missingPhotos") ||
+          (id==="btnStockFilterMissingSpecReel" && STOCK_VIEW_FILTER==="missingSpecReel");
+        el.classList.toggle("btn", active);
+        el.classList.toggle("secondary", !active);
+      });
+      if(MODE==='stock') renderStockTab();
+    }
+
+    ["btnStockFilterAll","btnStockFilterMissingMontage","btnStockFilterMissingPhotos","btnStockFilterMissingSpecReel"].forEach((id)=>{
+      const el = $(id);
+      if(!el) return;
+      el.addEventListener('click', ()=>{
+        if(id==="btnStockFilterAll") setStockViewFilter("all");
+        if(id==="btnStockFilterMissingMontage") setStockViewFilter("missingMontage");
+        if(id==="btnStockFilterMissingPhotos") setStockViewFilter("missingPhotos");
+        if(id==="btnStockFilterMissingSpecReel") setStockViewFilter("missingSpecReel");
+      });
+    });
 
     // stock tab search (فلتر فوري داخل جدول stock)
     const stockSearchEl = document.getElementById('stockSearch');
@@ -1930,7 +1996,7 @@ function initials(name){
         'م': i+1,
         'Unique Spec Key': r.specKey||'',
         'العدد': r.count||0,
-        'تصوير': r.photo||'',
+        'ريل مواصفات': r.specReel||'',
         'مونتاج': r.montage||'',
         'تفاصيل المونتاج': r.montageDetails||'',
         'شهور المونتاج': r.montageMonths||'',
@@ -3269,10 +3335,8 @@ function openDailyTaskModal(ctx){
       const searchEl = document.getElementById('stockSearch');
 
       const arr = Array.isArray(AGENDA_STOCK) ? AGENDA_STOCK : [];
-      // فلتر stock (بدون الوكالة + بدون مباع تحت/تم التسليم)
       const filtered = arr.filter(r => !isExcludedByInventoryFilter(r));
 
-      // تجميع حسب Unique Spec Key (بدون ألوان)
       const groups = new Map();
       for(const r of filtered){
         const key = buildSpecKeyNoColors({
@@ -3288,13 +3352,44 @@ function openDailyTaskModal(ctx){
 
       let rows = Array.from(groups.values());
 
-      // بحث داخل الـ SpecKey
       const q = normalizeArabicText(searchEl?.value || "");
       if(q){
         rows = rows.filter(r => normalizeArabicText(r.specKey).includes(q));
       }
 
-      // ترتيب أبجدي
+      await loadStockTasksOnce();
+
+      rows = rows.map(r=>{
+        const saved = STOCK_TASKS_MAP.get(r.specKey) || {};
+        const photo = saved.photo || '';
+        const specReel = saved.specReel || '';
+        const montage = saved.montage || '';
+        const montageMonths = formatMontageMonthsList(saved.montageMonths);
+        const inAgenda = saved.inAgenda || '';
+        const agendaMonth = saved.agendaMonth || '';
+        const agendaYear = saved.agendaYear || '';
+        const montageDetails = deriveMontageDetails({ photo, specReel }) || saved.montageDetails || '';
+        return {
+          ...r,
+          photo,
+          specReel,
+          montage,
+          montageDetails,
+          montageMonths,
+          inAgenda,
+          agendaMonth,
+          agendaYear
+        };
+      });
+
+      if(STOCK_VIEW_FILTER === 'missingMontage'){
+        rows = rows.filter(r => !String(r.montageMonths || '').trim());
+      }else if(STOCK_VIEW_FILTER === 'missingPhotos'){
+        rows = rows.filter(r => !isYes(r.photo));
+      }else if(STOCK_VIEW_FILTER === 'missingSpecReel'){
+        rows = rows.filter(r => !isYes(r.specReel));
+      }
+
       rows.sort((a,b)=> a.specKey.localeCompare(b.specKey,'ar',{numeric:true,sensitivity:'base'}));
 
       $("stockCount").textContent = rows.reduce((s,r)=> s + (r.count||0), 0);
@@ -3303,14 +3398,12 @@ function openDailyTaskModal(ctx){
         emptyEl.style.display = "";
         wrapEl.style.display = "none";
         tableEl.innerHTML = "";
+        __LAST_STOCK_ROWS = [];
         return;
       }
 
       emptyEl.style.display = "none";
       wrapEl.style.display = "";
-
-      // حمل بيانات التحكم المحفوظة (مرة واحدة)
-      await loadStockTasksOnce();
 
       const months = [
         "يناير","فبراير","مارس","أبريل","مايو","يونيو",
@@ -3323,17 +3416,10 @@ function openDailyTaskModal(ctx){
           <option value="نعم" ${val==='نعم'?'selected':''}>نعم</option>
           <option value="لا" ${val==='لا'?'selected':''}>لا</option>`;
 
-      const montageDetailsOptions = (val)=>
-        `
-          <option value="" ${!val?'selected':''}>-</option>
-          <option value="صور + ريل مواصفات: نعم" ${val==='صور + ريل مواصفات: نعم'?'selected':''}>صور + ريل مواصفات: نعم</option>
-          <option value="صور + ريل مواصفات: لا" ${val==='صور + ريل مواصفات: لا'?'selected':''}>صور + ريل مواصفات: لا</option>`;
-
       const cols = [
         {k:'idx',  label:'م', w:70},
         {k:'spec', label:'Unique Spec Key (الضغط للنسخ)', w:520},
         {k:'count',label:'العدد', w:90},
-        {k:'photo',label:'تصوير', w:140},
         {k:'montage',label:'مونتاج', w:140},
         {k:'montageDetails',label:'تفاصيل المونتاج', w:240},
         {k:'montageMonths',label:'شهور المونتاج', w:220},
@@ -3345,43 +3431,27 @@ function openDailyTaskModal(ctx){
       const colgroup = `<colgroup>${cols.map(c=>`<col style="width:${c.w}px">`).join('')}</colgroup>`;
       const thead = `<thead><tr>${cols.map(c=>`<th>${escapeHtml(c.label)}</th>`).join('')}</tr></thead>`;
 
+      __LAST_STOCK_ROWS = rows.map((r)=>({
+        specKey: r.specKey,
+        count: r.count || 0,
+        specReel: r.specReel || '',
+        montage: r.montage || '',
+        montageDetails: r.montageDetails || '',
+        montageMonths: r.montageMonths || '',
+        inAgenda: r.inAgenda || '',
+        agendaMonth: r.agendaMonth || '',
+        agendaYear: r.agendaYear || ''
+      }));
 
-
-      // Prepare rows for Excel export (merge saved controls)
-      __LAST_STOCK_ROWS = rows.map(r=>{
-        const saved = STOCK_TASKS_MAP.get(r.specKey) || {};
-        return {
-          specKey: r.specKey,
-          count: r.count || 0,
-          photo: saved.photo || '',
-          montage: saved.montage || '',
-          montageDetails: saved.montageDetails || '',
-          montageMonths: Array.isArray(saved.montageMonths) ? saved.montageMonths.join('، ') : '',
-          inAgenda: saved.inAgenda || '',
-          agendaMonth: saved.agendaMonth || '',
-          agendaYear: saved.agendaYear || ''
-        };
-      });
       const tbody = `<tbody>${rows.map((r,i)=>{
-        const specKey = r.specKey;
-        const saved = STOCK_TASKS_MAP.get(specKey) || {};
-        const photo = saved.photo || '';
-        const montage = saved.montage || '';
-        const montageDetails = saved.montageDetails || '';
-        const montageMonths = Array.isArray(saved.montageMonths) ? saved.montageMonths.join('، ') : '';
-        const inAgenda = saved.inAgenda || '';
-        const agendaMonth = saved.agendaMonth || '';
-        const agendaYear = saved.agendaYear || '';
-
-        const montageDisabled = montage !== 'نعم';
-        const agendaDisabled = inAgenda !== 'نعم';
+        const agendaDisabled = r.inAgenda !== 'نعم';
 
         return `
-          <tr data-spec="${escapeAttr(specKey)}">
+          <tr data-spec="${escapeAttr(r.specKey)}">
             <td class="center">${i+1}</td>
             <td class="wrap">
               <button type="button" class="btn secondary xs" data-copy="1" style="width:100%;justify-content:space-between;gap:8px">
-                <span style="text-align:right;white-space:normal;line-height:1.6">${escapeHtml(specKey)}</span>
+                <span style="text-align:right;white-space:normal;line-height:1.6">${escapeHtml(r.specKey)}</span>
                 <span class="stock-badge-mini">نسخ</span>
               </button>
             </td>
@@ -3391,35 +3461,27 @@ function openDailyTaskModal(ctx){
               </button>
             </td>
             <td>
-              <select class="stock-ctrl" data-field="photo">${yesNoOptions(photo)}</select>
+              <select class="stock-ctrl" data-field="montage">${yesNoOptions(r.montage)}</select>
             </td>
+            <td class="wrap">${escapeHtml(r.montageDetails || '-')}</td>
+            <td class="wrap">${escapeHtml(r.montageMonths || '-')}</td>
             <td>
-              <select class="stock-ctrl" data-field="montage">${yesNoOptions(montage)}</select>
-            </td>
-            <td>
-              <select class="stock-ctrl" data-field="montageDetails" ${montageDisabled ? 'disabled' : ''}>
-                ${montageDetailsOptions(montageDetails)}
-              </select>
-            </td>
-            <td class="wrap">${escapeHtml(montageMonths || '-')}</td>
-            <td>
-              <select class="stock-ctrl" data-field="inAgenda">${yesNoOptions(inAgenda)}</select>
+              <select class="stock-ctrl" data-field="inAgenda">${yesNoOptions(r.inAgenda)}</select>
             </td>
             <td>
               <select class="stock-ctrl" data-field="agendaMonth" ${agendaDisabled ? 'disabled' : ''}>
-                <option value="" ${!agendaMonth?'selected':''}>-</option>
-                ${months.map(m=>`<option value="${escapeAttr(m)}" ${agendaMonth===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}
+                <option value="" ${!r.agendaMonth?'selected':''}>-</option>
+                ${months.map(m=>`<option value="${escapeAttr(m)}" ${r.agendaMonth===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}
               </select>
             </td>
             <td>
-              <input class="stock-ctrl small" data-field="agendaYear" type="number" min="2000" max="2100" placeholder="YYYY" value="${escapeAttr(agendaYear)}" ${agendaDisabled ? 'disabled' : ''}/>
+              <input class="stock-ctrl small" data-field="agendaYear" type="number" min="2000" max="2100" placeholder="YYYY" value="${escapeAttr(r.agendaYear)}" ${agendaDisabled ? 'disabled' : ''}/>
             </td>
           </tr>`;
       }).join('')}</tbody>`;
 
       tableEl.innerHTML = colgroup + thead + tbody;
 
-      // Delegation: copy + save
       tableEl.onclick = (ev)=>{
         const tr = ev.target.closest('tr');
         const key = tr?.getAttribute('data-spec') || '';
@@ -3448,17 +3510,15 @@ function openDailyTaskModal(ctx){
         if(!key || !field) return;
 
         const value = el.value || '';
-        scheduleSaveStockTask(key, { [field]: value });
+        const prevMeta = STOCK_TASKS_MAP.get(key) || { specKey:key };
+        const patch = { [field]: value };
 
-        // تفعيل/تعطيل الحقول التابعة
         if(field === 'montage'){
-          const md = tr.querySelector('[data-field="montageDetails"]');
-          if(md){
-            md.disabled = (value !== 'نعم');
-            if(md.disabled){
-              md.value = '';
-              scheduleSaveStockTask(key, { montageDetails: '' });
-            }
+          if(value !== 'نعم'){
+            patch.montageMonths = [];
+            patch.montageDetails = '';
+          }else{
+            patch.montageDetails = deriveMontageDetails(prevMeta);
           }
         }
         if(field === 'inAgenda'){
@@ -3467,13 +3527,15 @@ function openDailyTaskModal(ctx){
           const dis = (value !== 'نعم');
           if(m){
             m.disabled = dis;
-            if(dis){ m.value=''; scheduleSaveStockTask(key,{agendaMonth:''}); }
+            if(dis){ m.value=''; patch.agendaMonth=''; }
           }
           if(y){
             y.disabled = dis;
-            if(dis){ y.value=''; scheduleSaveStockTask(key,{agendaYear:''}); }
+            if(dis){ y.value=''; patch.agendaYear=''; }
           }
         }
+        scheduleSaveStockTask(key, patch);
+        renderStockTab();
       };
 
       tableEl.oninput = (ev)=>{
@@ -3487,7 +3549,6 @@ function openDailyTaskModal(ctx){
         scheduleSaveStockTask(key, { agendaYear: v });
       };
     }
-
 
 
     // ===== Dashboard (Home) =====
@@ -4636,6 +4697,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     const finishModal = $("finishModal");
     const fmSpecKey = $("fmSpecKey");
     const fmMonth = $("fmMonth");
+    const fmYear = $("fmYear");
     const fmExtColors = $("fmExtColors");
     const fmIntColors = $("fmIntColors");
 
@@ -4716,8 +4778,10 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(!task?.id) return;
       const key = String(task.specKey||"").trim();
       const colors = getColorsForSpecKey(key);
+      const prevMeta = STOCK_TASKS_MAP.get(key) || {};
       fmSpecKey.value = key;
-      fmMonth.value = task.finishMonth || monthNameFromDateValue(task.due || task.taskCreatedDate) || monthNameFromDateValue(todayYmd()) || "";
+      fmMonth.value = task.finishMonth || prevMeta.agendaMonth || monthNameFromDateValue(task.due || task.taskCreatedDate) || monthNameFromDateValue(todayYmd()) || "";
+      fmYear.value = task.finishYear || prevMeta.agendaYear || yearFromDateValue(task.due || task.taskCreatedDate) || currentYearStr();
       buildFinishChecklist(fmExtColors, colors.ext, task.finishExtColors || []);
       buildFinishChecklist(fmIntColors, colors.int, task.finishIntColors || []);
       finishModal.classList.add("show");
@@ -4738,10 +4802,12 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(!CURRENT_TASK?.id) return toast("⚠️ لا يوجد Task");
 
       const selectedMonth = String(fmMonth?.value || "").trim();
+      const selectedYear = String(fmYear?.value || "").trim();
       const selectedExtColors = getCheckedValues(fmExtColors);
       const selectedIntColors = getCheckedValues(fmIntColors);
 
       if(!selectedMonth) return toast("اختر شهر المونتاج");
+      if(!selectedYear) return toast("اختر السنة");
 
       try{
         const prevCol = String(CURRENT_TASK.column || "قائمة");
@@ -4762,6 +4828,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           doneAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           finishMonth: selectedMonth,
+          finishYear: selectedYear,
           finishExtColors: selectedExtColors,
           finishIntColors: selectedIntColors
         });
@@ -4771,14 +4838,29 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           const prevMeta = STOCK_TASKS_MAP.get(specKey) || { specKey };
           const prevMonths = Array.isArray(prevMeta.montageMonths) ? prevMeta.montageMonths : [];
           const nextMonths = Array.from(new Set([...prevMonths, selectedMonth]));
-          const patch = {
+
+          const sourceCol = String(CURRENT_TASK.column || '').trim();
+          const isSpecReelTask = sourceCol === 'ريل مواصفات';
+          const isPhotosTask = sourceCol === 'تصميم صور';
+
+          const nextMeta = {
+            ...prevMeta,
             specKey,
             montage: "نعم",
             montageMonths: nextMonths,
+            inAgenda: "نعم",
+            agendaMonth: selectedMonth,
+            agendaYear: selectedYear,
             updatedAt: serverTimestamp()
           };
-          STOCK_TASKS_MAP.set(specKey, { ...prevMeta, ...patch });
-          await setDoc(doc(db, "stock_tasks", stockTaskDocId(specKey)), patch, { merge:true });
+
+          if(isSpecReelTask) nextMeta.specReel = "نعم";
+          if(isPhotosTask) nextMeta.photo = "نعم";
+
+          nextMeta.montageDetails = deriveMontageDetails(nextMeta);
+
+          STOCK_TASKS_MAP.set(specKey, nextMeta);
+          await setDoc(doc(db, "stock_tasks", stockTaskDocId(specKey)), nextMeta, { merge:true });
         }
       }catch(e){
         console.error(e);
