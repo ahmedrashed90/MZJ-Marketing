@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1954,12 +1955,25 @@ function initials(name){
     let CURRENT_ROLE = "member";
     let USERS = [];
 
+    function isMemberOnly(){
+      return CURRENT_ROLE === "member";
+    }
+
+    function applyRoleBasedNavigation(){
+      const memberOnly = isMemberOnly();
+      try{ $("navHome").style.display = memberOnly ? "none" : ""; }catch(e){}
+      try{ $("navDaily").style.display = memberOnly ? "none" : ""; }catch(e){}
+      try{ $("navStock").style.display = memberOnly ? "none" : ""; }catch(e){}
+      try{ $("navAdmin").style.display = (CURRENT_ROLE === "admin") ? "" : "none"; }catch(e){}
+    }
+
     // ===== Persist last opened tab (refresh keeps same tab) =====
     const LAST_VIEW_KEY = "ws_last_view";
     function saveLastView(view, extra={}){
       try{ localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({view, ...extra})); }catch(e){}
     }
     async function restoreLastView(){
+      if(isMemberOnly()) return openList("agenda");
       let state=null;
       try{ state = JSON.parse(localStorage.getItem(LAST_VIEW_KEY)||"null"); }catch(e){ state=null; }
       if(!state || !state.view){ openHome(); return; }
@@ -2095,8 +2109,7 @@ let MODE = "home";
 
       $("whoName").textContent = displayName;
       $("whoRole").textContent = (CURRENT_ROLE==="admin" ? "مدير" : "عضو");
-      // show Admin tab for admins only
-      try{ $("navAdmin").style.display = (CURRENT_ROLE==="admin" ? "" : "none"); }catch(e){}
+      applyRoleBasedNavigation();
       $("avatar").textContent = initials(displayName);
 
       await loadUsers();
@@ -2423,6 +2436,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
 
 
     function openStock(){
+      if(isMemberOnly()) return openList("agenda");
       MODE="stock"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
       saveLastView("stock");
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
@@ -2441,6 +2455,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     }
 
     function openAdmin(){
+      if(CURRENT_ROLE !== "admin") return openList("agenda");
       MODE="admin"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
       if(unsubTasks){unsubTasks();unsubTasks=null;}
@@ -2481,6 +2496,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     }
 
     function openDaily(){
+      if(isMemberOnly()) return openList("agenda");
       MODE="daily"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
       saveLastView("daily");
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
@@ -3886,6 +3902,7 @@ function openDailyTaskModal(ctx){
     }
 
     function openHome(){
+      if(isMemberOnly()) return openList("agenda");
       MODE="home"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
       saveLastView("home");
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
