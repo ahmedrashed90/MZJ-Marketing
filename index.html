@@ -7,6 +7,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1078,9 +1079,12 @@
             <div class="muted" id="boardSub" style="font-size:12px;margin-top:6px"></div>
             <div id="boardFilterWrap" style="display:none;margin-top:10px">
               <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">فلترة حسب المسؤول</label>
-              <select id="boardUserFilter" class="inp" style="min-width:260px">
-                <option value="">الكل</option>
-              </select>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <select id="boardUserFilter" class="inp" style="min-width:260px">
+                  <option value="">الكل</option>
+                </select>
+                <button class="btn secondary sm" id="boardDoneFilterBtn" type="button">إظهار المنتهي فقط</button>
+              </div>
             </div>
           </div>
           <div class="actions">
@@ -2077,6 +2081,7 @@ let MODE = "home";
 
     // Board tasks filter (agenda only)
     let BOARD_USER_FILTER_UID = "";
+    let BOARD_DONE_ONLY = false;
     let BOARD_TASKS_ALL = [];
 
     let unsubWorkspaces = null;
@@ -4000,6 +4005,18 @@ function openDailyTaskModal(ctx){
       }
     });
 
+    $("boardDoneFilterBtn")?.addEventListener("click", ()=>{
+      BOARD_DONE_ONLY = !BOARD_DONE_ONLY;
+      const btn = $("boardDoneFilterBtn");
+      if(btn){
+        btn.textContent = BOARD_DONE_ONLY ? "إظهار كل التاسكات" : "إظهار المنتهي فقط";
+        btn.className = BOARD_DONE_ONLY ? "btn sm" : "btn secondary sm";
+      }
+      if(MODE==="board" && CURRENT_WORKSPACE){
+        renderBoardColumns(CURRENT_WORKSPACE, applyBoardUserFilter(BOARD_TASKS_ALL));
+      }
+    });
+
     function openList(type){
       MODE = type==="agenda" ? "agendas" : "campaigns";
       saveLastView("list", {type});
@@ -4113,8 +4130,10 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       // Agenda-only: filter tasks by assignee
       const bfWrap = $("boardFilterWrap");
       const bfSel = $("boardUserFilter");
+      const bfDoneBtn = $("boardDoneFilterBtn");
       if(workspace.type === "agenda"){
         bfWrap.style.display = "";
+        BOARD_DONE_ONLY = false;
         // rebuild options each time (users may update)
         const cur = BOARD_USER_FILTER_UID || "";
         bfSel.innerHTML = `<option value="">الكل</option>`;
@@ -4125,9 +4144,20 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           bfSel.appendChild(opt);
         });
         bfSel.value = cur;
+        if(bfDoneBtn){
+          bfDoneBtn.style.display = "";
+          bfDoneBtn.textContent = "إظهار المنتهي فقط";
+          bfDoneBtn.className = "btn secondary sm";
+        }
       }else{
         bfWrap.style.display = "none";
         BOARD_USER_FILTER_UID = "";
+        BOARD_DONE_ONLY = false;
+        if(bfDoneBtn){
+          bfDoneBtn.style.display = "none";
+          bfDoneBtn.textContent = "إظهار المنتهي فقط";
+          bfDoneBtn.className = "btn secondary sm";
+        }
       }
 
       // show VIN for the selected spec key
@@ -4142,18 +4172,61 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     }
 
     function applyBoardUserFilter(tasks){
-      const arr = Array.isArray(tasks)?tasks:[];
-      if(!CURRENT_WORKSPACE || CURRENT_WORKSPACE.type!=="agenda") return arr;
-      const uid = String(BOARD_USER_FILTER_UID||"");
-      if(!uid) return arr;
-      return arr.filter(t=> String(t.assigneeUid||"") === uid);
+      let arr = Array.isArray(tasks) ? [...tasks] : [];
+      if(!CURRENT_WORKSPACE || CURRENT_WORKSPACE.type !== "agenda") return arr;
+
+      const uid = String(BOARD_USER_FILTER_UID || "");
+      if(uid){
+        arr = arr.filter(t => String(t.assigneeUid || "") === uid);
+      }
+
+      if (BOARD_DONE_ONLY) {
+        arr = arr.filter(t => isTaskDone(t));
+      } else {
+        arr = arr.filter(t => !isTaskDone(t));
+      }
+
+      return arr;
+    }
+
+    function getBoardDisplayColumns(workspace, tasks){
+      const baseCols = Array.isArray(workspace?.columns) && workspace.columns.length ? workspace.columns.slice() : ["قائمة"];
+      const taskCols = Array.from(new Set((Array.isArray(tasks)?tasks:[])
+        .map(t => String(t?.column || '').trim())
+        .filter(Boolean)));
+
+      const finalCols = baseCols.slice();
+      const pushIfMissing = (name)=>{
+        const v = String(name || '').trim();
+        if(!v) return;
+        if(!finalCols.includes(v)) finalCols.push(v);
+      };
+
+      taskCols.forEach(colName=>{
+        const v = String(colName || '').trim();
+        if(!v || finalCols.includes(v)) return;
+
+        const doneMatch = v.match(/^(.*?)(?:\s*[—-]\s*|\s+)تم الانتهاء$/);
+        if(doneMatch){
+          const baseName = String(doneMatch[1] || '').trim();
+          const baseIdx = finalCols.indexOf(baseName);
+          if(baseIdx >= 0){
+            finalCols.splice(baseIdx + 1, 0, v);
+            return;
+          }
+        }
+
+        pushIfMissing(v);
+      });
+
+      return finalCols;
     }
 
     function renderBoardColumns(workspace, tasks){
       const colsEl = $("boardCols");
       colsEl.innerHTML = "";
 
-      const cols = Array.isArray(workspace.columns) && workspace.columns.length ? workspace.columns : ["قائمة"];
+      let cols = getBoardDisplayColumns(workspace, tasks);
       const byCol = {};
       cols.forEach(c=> byCol[c]=[]);
       tasks.forEach(t=>{
@@ -4161,6 +4234,16 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(!byCol[c]) byCol[c]=[];
         byCol[c].push(t);
       });
+
+      if (workspace?.type === "agenda") {
+        const hasAnyTasks = tasks.length > 0;
+        if (hasAnyTasks) {
+          cols = cols.filter(colName => {
+            const list = byCol[colName] || [];
+            return list.length > 0;
+          });
+        }
+      }
 
       cols.forEach(colName=>{
         const col = document.createElement("section");
@@ -4818,17 +4901,32 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(!selectedYear) return toast("اختر السنة");
 
       try{
-        const prevCol = String(CURRENT_TASK.column || "قائمة");
-        const doneCol = /تم الانتهاء/.test(prevCol) ? prevCol : `${prevCol} — تم الانتهاء`;
+        const prevCol = String(CURRENT_TASK.column || "قائمة").trim();
+        const doneColLegacy = `${prevCol} — تم الانتهاء`;
+        const doneColPlain = `${prevCol} تم الانتهاء`;
+        const existingCols = Array.isArray(CURRENT_WORKSPACE?.columns) ? CURRENT_WORKSPACE.columns.slice() : ["قائمة"];
+        const doneCol = /تم الانتهاء/.test(prevCol)
+          ? prevCol
+          : (existingCols.includes(doneColPlain) ? doneColPlain : (existingCols.includes(doneColLegacy) ? doneColLegacy : doneColPlain));
 
         try{
-          const cols = Array.isArray(CURRENT_WORKSPACE?.columns) ? CURRENT_WORKSPACE.columns.slice() : ["قائمة"];
+          const cols = existingCols.slice();
           if(!cols.includes(doneCol)){
-            cols.push(doneCol);
+            const baseIdx = cols.indexOf(prevCol);
+            if(baseIdx >= 0) cols.splice(baseIdx + 1, 0, doneCol);
+            else cols.push(doneCol);
             await updateDoc(doc(db,"workspaces", CURRENT_WORKSPACE.id), { columns: cols, updatedAt: serverTimestamp() });
             CURRENT_WORKSPACE.columns = cols;
           }
-        }catch(_e){}
+        }catch(_e){
+          const localCols = Array.isArray(CURRENT_WORKSPACE?.columns) ? CURRENT_WORKSPACE.columns.slice() : ["قائمة"];
+          if(!localCols.includes(doneCol)){
+            const baseIdx = localCols.indexOf(prevCol);
+            if(baseIdx >= 0) localCols.splice(baseIdx + 1, 0, doneCol);
+            else localCols.push(doneCol);
+            CURRENT_WORKSPACE.columns = localCols;
+          }
+        }
 
         await updateDoc(doc(db, "workspace_tasks", CURRENT_TASK.id), {
           status: "تم الانتهاء",
