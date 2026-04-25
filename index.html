@@ -10,6 +10,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -3158,9 +3159,16 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const u = USERS.find(x=> String(x.uid||"") === String(uid||""));
       return u?.name || u?.email || "—";
     }
+    function contentPrimaryUid(t){
+      return String(t?.primaryUid || t?.mainAssigneeUid || t?.assigneeUid || "");
+    }
+    function contentPartnerUid(t){
+      return String(t?.partnerUid || t?.partnerAssigneeUid || "");
+    }
     function contentCanFinish(t){
       const uid = CURRENT_USER?.uid || "";
-      return !!uid && (String(t.primaryUid||"") === uid || String(t.partnerUid||"") === uid);
+      const participants = Array.isArray(t?.participantUids) ? t.participantUids.map(String) : [];
+      return !!uid && (contentPrimaryUid(t) === uid || contentPartnerUid(t) === uid || participants.includes(String(uid)));
     }
     function contentIsDone(t){ return String(t.status||"") === "done" || !!t.doneAt; }
     function contentIsLate(t){
@@ -3172,7 +3180,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     function contentCanSee(t){
       if(isAdminRole()) return true;
       const uid = CURRENT_USER?.uid || "";
-      return String(t.primaryUid||"") === uid || String(t.partnerUid||"") === uid;
+      const participants = Array.isArray(t?.participantUids) ? t.participantUids.map(String) : [];
+      return contentPrimaryUid(t) === uid || contentPartnerUid(t) === uid || participants.includes(String(uid));
     }
     function contentFillUsers(selectEl, selected="", emptyText="— اختر —"){
       if(!selectEl) return;
@@ -3279,8 +3288,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           <tr data-content-id="${escapeAttr(t.id)}">
             <td><b>${escapeHtml(t.dept || '—')}</b></td>
             <td><div class="content-card-title">${escapeHtml(String(t.required||'بدون مطلوب').split('\\n')[0])}</div><div class="content-card-text">${escapeHtml(t.required||'')}</div></td>
-            <td>${escapeHtml(t.primaryName || contentUserName(t.primaryUid))}</td>
-            <td>${escapeHtml(t.partnerName || (t.partnerUid ? contentUserName(t.partnerUid) : '—'))}</td>
+            <td>${escapeHtml(t.primaryName || contentUserName(contentPrimaryUid(t)))}</td>
+            <td>${escapeHtml(t.partnerName || (contentPartnerUid(t) ? contentUserName(contentPartnerUid(t)) : '—'))}</td>
             <td>${escapeHtml(t.requestDate || '—')}</td>
             <td>${escapeHtml(t.dueDate || '—')}</td>
             <td>${contentStatusHtml(t)}</td>
@@ -3314,6 +3323,38 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         });
       });
     }
+    async function backfillContentAliasesIfAdmin(items){
+      if(!isAdminRole()) return;
+      const list = Array.isArray(items) ? items : [];
+      for(const t of list){
+        if(!t?.id) continue;
+        const p = String(t.primaryUid || t.mainAssigneeUid || t.assigneeUid || "");
+        const pr = USERS.find(x=>x.uid===p) || {};
+        const partner = String(t.partnerUid || t.partnerAssigneeUid || "");
+        const pa = USERS.find(x=>x.uid===partner) || {};
+        const needs = (p && (!t.mainAssigneeUid || !t.assigneeUid)) || (partner && !t.partnerAssigneeUid);
+        if(!needs) continue;
+        try{
+          const patch = { updatedAt: serverTimestamp() };
+          if(p){
+            patch.primaryUid = p;
+            patch.mainAssigneeUid = p;
+            patch.assigneeUid = p;
+            patch.primaryName = t.primaryName || t.mainAssigneeName || t.assigneeName || pr.name || pr.email || "";
+            patch.mainAssigneeName = patch.primaryName;
+            patch.assigneeName = patch.primaryName;
+          }
+          if(partner){
+            patch.partnerUid = partner;
+            patch.partnerAssigneeUid = partner;
+            patch.partnerName = t.partnerName || t.partnerAssigneeName || pa.name || pa.email || "";
+            patch.partnerAssigneeName = patch.partnerName;
+          }
+          patch.participantUids = partner ? [p, partner].filter(Boolean) : [p].filter(Boolean);
+          await updateDoc(doc(db,"content_tasks", t.id), patch);
+        }catch(e){ console.warn("content alias backfill failed", t.id, e); }
+      }
+    }
     function listenContent(){
       if(unsubContent){unsubContent();unsubContent=null;}
       unsubContent = onSnapshot(collection(db,"content_tasks"), (snap)=>{
@@ -3325,6 +3366,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         });
         CONTENT_TASKS = items;
         renderContent();
+        backfillContentAliasesIfAdmin(items);
       }, (err)=>{ console.error(err); toast("⚠️ فشل تحميل تاسكات المحتوى"); CONTENT_TASKS=[]; renderContent(); });
     }
     function openContent(){
@@ -3350,8 +3392,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       CONTENT_MODE = mode; CONTENT_CURRENT = task || null;
       $("contentTaskModalTitle").textContent = mode === "edit" ? "تعديل تاسك محتوى" : "إضافة تاسك محتوى";
       contentFillDepartments($("contentTaskDept"), task?.dept || "", false);
-      contentFillUsers($("contentTaskPrimary"), task?.primaryUid || "", "— اختر المسؤول —");
-      contentFillUsers($("contentTaskPartner"), task?.partnerUid || "", "— بدون مشارك —");
+      contentFillUsers($("contentTaskPrimary"), contentPrimaryUid(task || {}) || "", "— اختر المسؤول —");
+      contentFillUsers($("contentTaskPartner"), contentPartnerUid(task || {}) || "", "— بدون مشارك —");
       $("contentTaskRequestDate").value = task?.requestDate || todayYmd();
       $("contentTaskDueDate").value = task?.dueDate || "";
       $("contentTaskRequired").value = task?.required || "";
@@ -3428,8 +3470,17 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         const primary = USERS.find(x=>x.uid===primaryUid) || {};
         const partner = USERS.find(x=>x.uid===partnerUid) || {};
         const payload = {
-          dept, primaryUid, primaryName: primary.name || primary.email || "",
-          partnerUid: partnerUid || null, partnerName: partnerUid ? (partner.name || partner.email || "") : null,
+          dept,
+          primaryUid,
+          mainAssigneeUid: primaryUid,
+          assigneeUid: primaryUid,
+          primaryName: primary.name || primary.email || "",
+          mainAssigneeName: primary.name || primary.email || "",
+          assigneeName: primary.name || primary.email || "",
+          partnerUid: partnerUid || null,
+          partnerAssigneeUid: partnerUid || null,
+          partnerName: partnerUid ? (partner.name || partner.email || "") : null,
+          partnerAssigneeName: partnerUid ? (partner.name || partner.email || "") : null,
           participantUids: partnerUid ? [primaryUid, partnerUid] : [primaryUid],
           requestDate, dueDate, required, reviewed,
           status: CONTENT_MODE === "edit" ? (CONTENT_CURRENT?.status || "open") : "open",
@@ -3472,8 +3523,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           <div><label>الحالة</label><div style="padding-top:8px">${contentStatusHtml(t)}</div></div>
         </div>
         <div class="grid2">
-          <div><label>المسؤول الأساسي</label><input readonly value="${escapeAttr(t.primaryName || contentUserName(t.primaryUid))}" /></div>
-          <div><label>مشارك في التنفيذ</label><input readonly value="${escapeAttr(t.partnerName || (t.partnerUid ? contentUserName(t.partnerUid) : '—'))}" /></div>
+          <div><label>المسؤول الأساسي</label><input readonly value="${escapeAttr(t.primaryName || t.mainAssigneeName || contentUserName(contentPrimaryUid(t)))}" /></div>
+          <div><label>مشارك في التنفيذ</label><input readonly value="${escapeAttr(t.partnerName || t.partnerAssigneeName || (contentPartnerUid(t) ? contentUserName(contentPartnerUid(t)) : '—'))}" /></div>
         </div>
         <div class="grid2">
           <div><label>تاريخ الطلب</label><input readonly value="${escapeAttr(t.requestDate||'—')}" /></div>
