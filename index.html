@@ -858,6 +858,8 @@
     .content-detail-box{border:1px solid #efe5dd;border-radius:14px;padding:12px;background:#fff;line-height:1.8;white-space:pre-wrap}
     .content-check-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #efe5dd;border-radius:14px;padding:10px}
     .content-check-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--beige)}
+    .content-resource-box{border:1px dashed rgba(62,36,32,.18);border-radius:14px;padding:12px;background:#fffaf5;display:grid;gap:10px}
+    .content-resource-box .grid2{align-items:end}
     @media(max-width:860px){.content-toolbar select,.content-toolbar input{min-width:100%;}.content-table{min-width:980px}}
 
 
@@ -1797,6 +1799,14 @@
           <input id="contentTaskFiles" type="file" multiple />
           <div class="hint" style="color:var(--muted);margin-top:6px">يمكن إرفاق أكثر من ملف. الملفات الحالية تظهر عند فتح التاسك.</div>
           <div class="content-files" id="contentTaskExistingFiles" style="margin-top:10px"></div>
+        </div>
+        <div>
+          <label>إضافة لينك</label>
+          <div class="grid2" style="align-items:end">
+            <div><input id="contentTaskLinkTitle" placeholder="عنوان اللينك — مثال: ملف درايف" /></div>
+            <div><input id="contentTaskLinkUrl" placeholder="https://..." /></div>
+          </div>
+          <div class="hint" style="color:var(--muted);margin-top:6px">اختياري: يضاف اللينك مع الملفات المرفقة ويظهر داخل تفاصيل التاسك.</div>
         </div>
       </div>
       <div class="m-foot">
@@ -3150,11 +3160,12 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         ? taskOrFiles
         : [
             ...(Array.isArray(taskOrFiles?.files) ? taskOrFiles.files : []),
-            ...(Array.isArray(taskOrFiles?.attachments) ? taskOrFiles.attachments : [])
+            ...(Array.isArray(taskOrFiles?.attachments) ? taskOrFiles.attachments : []),
+            ...(Array.isArray(taskOrFiles?.links) ? taskOrFiles.links : [])
           ];
       const seen = new Set();
       return source.filter(f=>{
-        const key = String((f && (f.url || f.dataUrl || f.path || f.name)) || "");
+        const key = String((f && (f.url || f.dataUrl || f.path || f.name || f.title)) || "");
         if(!key || seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -3165,8 +3176,9 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(!arr.length) return `<span class="muted">—</span>`;
       return arr.map((f,i)=>{
         const href = f.url || f.dataUrl || '#';
-        const name = f.name || ('ملف '+(i+1));
-        return `<a class="content-file-link" href="${escapeAttr(href)}" target="_blank" rel="noopener">📎 ${escapeHtml(name)}</a>`;
+        const name = f.name || f.title || ('ملف '+(i+1));
+        const icon = String(f.kind || f.type || '').toLowerCase() === 'link' ? '🔗' : '📎';
+        return `<a class="content-file-link" href="${escapeAttr(href)}" target="_blank" rel="noopener">${icon} ${escapeHtml(name)}</a>`;
       }).join("");
     }
     function contentStatusHtml(t){
@@ -3306,6 +3318,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       $("contentTaskReviewed").value = (task?.reviewed === true || String(task?.reviewed)==='true') ? "true" : "false";
       $("contentTaskReviewed").disabled = !isAdminRole();
       $("contentTaskFiles").value = "";
+      $("contentTaskLinkTitle").value = "";
+      $("contentTaskLinkUrl").value = "";
       $("contentTaskExistingFiles").innerHTML = contentFilesHtml(task || []);
       $("contentTaskDelete").style.display = mode === "edit" ? "" : "none";
       $("contentTaskModal").classList.add("show");
@@ -3318,14 +3332,41 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const out=[];
       const arr = Array.from(files || []);
       for(const f of arr){
-        const safe = String(f.name || 'file').replace(/[\\/#?%*:|"<>]/g,'_');
+        const safe = String(f.name || 'file').replace(/[\/#?%*:|"<>]/g,'_');
         const path = `content_tasks/${taskId}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safe}`;
         const r = storageRef(storage, path);
         await uploadBytes(r, f);
         const url = await getDownloadURL(r);
-        out.push({ name:f.name, url, path, size:f.size || 0, type:f.type || "" });
+        out.push({ name:f.name, url, path, size:f.size || 0, type:f.type || "", kind:"file" });
       }
       return out;
+    }
+    function normalizeContentLinkUrl(url){
+      let u = String(url || '').trim();
+      if(!u) return '';
+      if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      return u;
+    }
+    function buildContentLink(title, url){
+      const cleanUrl = normalizeContentLinkUrl(url);
+      if(!cleanUrl) return null;
+      return { name: String(title || '').trim() || cleanUrl, title: String(title || '').trim() || cleanUrl, url: cleanUrl, kind:'link', type:'link' };
+    }
+    async function appendContentResources(task, files, links=[]){
+      if(!task?.id) throw new Error('missing-content-task');
+      const uploaded = await uploadContentFiles(task.id, files);
+      const linkItems = (Array.isArray(links) ? links : []).filter(Boolean);
+      const additions = [...uploaded, ...linkItems];
+      if(!additions.length) return [];
+      const oldFiles = normalizeContentFiles(task || {});
+      const merged = normalizeContentFiles([...oldFiles, ...additions]);
+      await updateDoc(doc(db,"content_tasks", task.id), {
+        files: merged,
+        attachments: merged,
+        updatedAt: serverTimestamp(),
+        updatedBy: CURRENT_USER?.uid || null
+      });
+      return additions;
     }
     async function saveContentTask(){
       if(!isAdminRole()) return toast("غير مسموح");
@@ -3336,6 +3377,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const dueDate = String($("contentTaskDueDate").value || "").trim();
       const required = String($("contentTaskRequired").value || "").trim();
       const reviewed = String($("contentTaskReviewed").value || "false") === "true";
+      const linkItem = buildContentLink($("contentTaskLinkTitle")?.value || "", $("contentTaskLinkUrl")?.value || "");
       if(!dept) return toast("اختر القسم");
       if(!primaryUid) return toast("اختر المسؤول الأساسي");
       if(!requestDate) return toast("حدد تاريخ الطلب");
@@ -3364,17 +3406,11 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         }
         const pickedFiles = $("contentTaskFiles")?.files;
         let fileWarn = false;
-        if(pickedFiles && pickedFiles.length){
+        if((pickedFiles && pickedFiles.length) || linkItem){
           try{
-            const uploaded = await uploadContentFiles(taskId, pickedFiles);
-            const oldFiles = normalizeContentFiles(CONTENT_CURRENT || {});
-            await updateDoc(doc(db,"content_tasks", taskId), {
-              files: [...oldFiles, ...uploaded],
-              attachments: [...oldFiles, ...uploaded],
-              updatedAt: serverTimestamp()
-            });
+            await appendContentResources({ id: taskId, ...(CONTENT_CURRENT || {}) }, pickedFiles, linkItem ? [linkItem] : []);
           }catch(fileErr){
-            console.error("content file upload failed", fileErr);
+            console.error("content resources upload failed", fileErr);
             fileWarn = true;
           }
         }
@@ -3387,6 +3423,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     function openContentDetail(t){
       CONTENT_CURRENT = t;
       const canFinish = contentCanFinish(t) && !contentIsDone(t);
+      const canAttach = isAdminRole() || contentCanFinish(t);
       const canEdit = isAdminRole();
       const body = $("contentDetailBody"), foot = $("contentDetailFoot");
       body.innerHTML = `
@@ -3407,13 +3444,24 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           ${t.reviewedAt ? `<span class="muted">آخر مراجعة محفوظة</span>` : ``}
         </div>
         <div><label>المطلوب</label><div class="content-detail-box">${escapeHtml(t.required||'')}</div></div>
-        <div><label>الملفات المرفقة</label><div class="content-files">${contentFilesHtml(t)}</div></div>
+        <div><label>الملفات واللينكات المرفقة</label><div class="content-files">${contentFilesHtml(t)}</div></div>
+        ${canAttach ? `
+        <div class="content-resource-box">
+          <label>إضافة ملفات أو لينك على التاسك</label>
+          <input id="contentDetailFiles" type="file" multiple />
+          <div class="grid2">
+            <div><input id="contentDetailLinkTitle" placeholder="عنوان اللينك — مثال: ملف درايف" /></div>
+            <div><input id="contentDetailLinkUrl" placeholder="https://..." /></div>
+          </div>
+          <div class="hint" style="color:var(--muted)">المسؤول الأساسي أو مشارك التنفيذ يقدر يضيف ملفات أو لينكات فقط بدون تعديل بيانات التاسك.</div>
+        </div>` : ``}
         ${t.doneAt ? `<div class="hint" style="color:var(--muted)">تم الإنهاء بواسطة: ${escapeHtml(t.doneByName || contentUserName(t.doneByUid))} ${t.late ? '— تم احتسابه متأخر وتطبيق الخصم' : ''}</div>` : ``}
       `;
       foot.innerHTML = `
         ${canEdit ? `<button class="btn secondary" id="contentDetailEdit" type="button">تعديل</button>` : ``}
         ${canEdit ? `<button class="btn danger" id="contentDetailDelete" type="button">حذف</button>` : ``}
         ${canEdit ? `<button class="btn ${t.reviewed ? 'secondary' : ''}" id="contentDetailReview" type="button">${t.reviewed ? '❌ إلغاء المراجعة' : '✅ تم المراجعة'}</button>` : ``}
+        ${canAttach ? `<button class="btn secondary" id="contentDetailAttachSave" type="button">حفظ الملفات / اللينك</button>` : ``}
         ${canFinish ? `<button class="btn" id="contentDetailDone" type="button">تم الانتهاء</button>` : ``}
         <button class="btn secondary" id="contentDetailOk" type="button">تمام</button>
       `;
@@ -3421,6 +3469,24 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       $("contentDetailOk")?.addEventListener("click", closeContentDetail);
       $("contentDetailEdit")?.addEventListener("click", ()=>{ closeContentDetail(); openContentTaskModal("edit", t); });
       $("contentDetailDelete")?.addEventListener("click", async ()=>{ await deleteContentTask(t); closeContentDetail(); });
+      $("contentDetailAttachSave")?.addEventListener("click", async ()=>{
+        if(!(isAdminRole() || contentCanFinish(t))) return toast("غير مسموح بإضافة مرفقات لهذا التاسك");
+        const files = $("contentDetailFiles")?.files;
+        const link = buildContentLink($("contentDetailLinkTitle")?.value || "", $("contentDetailLinkUrl")?.value || "");
+        if((!files || !files.length) && !link) return toast("اختار ملف أو اكتب لينك");
+        const btn = $("contentDetailAttachSave");
+        if(btn) btn.disabled = true;
+        try{
+          await appendContentResources(t, files, link ? [link] : []);
+          toast("✅ تم حفظ الملفات / اللينك");
+          closeContentDetail();
+        }catch(e){
+          console.error(e);
+          toast("⚠️ فشل حفظ الملفات / اللينك");
+        }finally{
+          if(btn) btn.disabled = false;
+        }
+      });
       $("contentDetailReview")?.addEventListener("click", async ()=>{
         if(!isAdminRole()) return toast("المراجعة للمدير فقط");
         try{
