@@ -9,6 +9,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -313,6 +314,7 @@
     .dash-pick .pick-sub{font-size:12px;color:var(--muted);margin-top:2px}
     .dash-picks-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     @media(max-width:980px){.dash-picks-two{grid-template-columns:1fr}}
+    @media(min-width:981px){.dash-picks-two{grid-template-columns:repeat(3,minmax(0,1fr))}}
     .dash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
     @media(max-width:980px){.dash-grid{grid-template-columns:1fr}}
     .dash-card{background:var(--card);border:1px solid #efe5dd;border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
@@ -800,6 +802,7 @@
 
     /* Dashboard split override (safe) */
     .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+    #dashContentCard{grid-column:1 / -1;}
     #dashTasksCard{grid-column:1 / -1;}
     @media(max-width:980px){.dash-grid{grid-template-columns:1fr !important;} #dashTasksCard{grid-column:auto;}}
 
@@ -1019,6 +1022,7 @@
                   <option value="auto">الشهر الحالي (أجندات + حملات)</option>
                   <option value="agenda">أجندات فقط</option>
                   <option value="campaign">حملات فقط</option>
+                  <option value="content">تاسكات المحتوى فقط</option>
                 </select>
               </div>
 
@@ -1057,6 +1061,12 @@
                     <div class="muted" style="font-size:12px">جاري تحميل الحملات…</div>
                   </div>
                 </div>
+                <div class="dash-ctrl">
+                  <label>اختيار تاسكات المحتوى لعرضها</label>
+                  <div class="dash-pick" id="dashPickContent">
+                    <div class="muted" style="font-size:12px">جاري تحميل تاسكات المحتوى…</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1085,6 +1095,16 @@
               <div class="dash-card-body" id="dashCampaigns"> </div>
             </div>
 
+            <div class="dash-card" id="dashContentCard">
+              <div class="dash-card-head">
+                <div>
+                  <h3 class="dash-card-title">تاسكات المحتوى</h3>
+                  <div class="muted" id="dashContentMeta">...</div>
+                </div>
+              </div>
+              <div class="dash-card-body" id="dashContentTasks"> </div>
+            </div>
+
             <div class="dash-card" id="dashTasksCard">
               <div class="dash-card-head">
                 <div>
@@ -1102,6 +1122,10 @@
                     <div class="muted" style="margin-bottom:8px;font-weight:900">التاسكات المتأخرة</div>
                     <div id="dashLateTasks"></div>
                   </div>
+                </div>
+                <div style="margin-top:14px">
+                  <div class="muted" style="margin-bottom:8px;font-weight:900">إجمالي المتأخر حسب اليوزر</div>
+                  <div id="dashLateUsers"></div>
                 </div>
               </div>
             </div>
@@ -1714,7 +1738,7 @@
           </div>
           <div>
             <label>المسؤول</label>
-            <select id="departmentTaskAssignee"><option value="">— اختر المسؤول —</option></select>
+            <select id="departmentTaskAssignee" multiple size="6"><option value="">— اختر المسؤول —</option></select>
           </div>
         </div>
         <div><label>اسم المهمة</label><input id="departmentTaskName" placeholder="اكتب اسم المهمة" /></div>
@@ -2848,6 +2872,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     }
     function fillDepartmentAssigneeSelect(selectEl, selectedUid=""){
       if(!selectEl) return;
+      const selectedSet = new Set(Array.isArray(selectedUid) ? selectedUid.map(String) : String(selectedUid||"").split(",").map(x=>x.trim()).filter(Boolean));
       selectEl.innerHTML = `<option value="">— اختر المسؤول —</option>`;
       USERS.slice().sort((a,b)=> (a.name||"").localeCompare(b.name||"", "ar")).forEach(u=>{
         const opt = document.createElement("option");
@@ -2855,7 +2880,17 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         opt.textContent = u.name + (u.role ? ` (${u.role})` : "");
         selectEl.appendChild(opt);
       });
-      selectEl.value = String(selectedUid || "");
+      if(selectEl.multiple){
+        Array.from(selectEl.options).forEach(o=>{ o.selected = selectedSet.has(String(o.value)); });
+      }else{
+        selectEl.value = String(Array.from(selectedSet)[0] || "");
+      }
+    }
+    function getDepartmentSelectedUids(selectEl){
+      if(!selectEl) return [];
+      if(selectEl.multiple) return Array.from(selectEl.selectedOptions).map(o=>String(o.value||"").trim()).filter(Boolean);
+      const v = String(selectEl.value || "").trim();
+      return v ? [v] : [];
     }
     function resolveDepartmentUserName(uid){
       const u = USERS.find(x=> String(x.uid||"") === String(uid||""));
@@ -2874,12 +2909,14 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         updatedBy: CURRENT_USER?.uid || null
       }, { merge:true });
     }
-    async function saveDepartmentTaskDoc({ oldId=null, dept, task, uid="", mode="create" }){
+    async function saveDepartmentTaskDoc({ oldId=null, dept, task, uid="", uids=null, mode="create" }){
       const cleanDept = String(dept||"").trim();
       const cleanTask = String(task||"").trim();
       if(!cleanDept) throw new Error("missing-dept");
       if(!cleanTask) throw new Error("missing-task");
-      const u = USERS.find(x=>x.uid===uid);
+      const selectedUids = Array.isArray(uids) ? uids.filter(Boolean) : (uid ? [uid] : []);
+      const selectedUsers = selectedUids.map(id=> USERS.find(x=>x.uid===id)).filter(Boolean);
+      const u = selectedUsers[0] || USERS.find(x=>x.uid===uid);
       const newId = departmentDocId(cleanDept, cleanTask);
       if(mode === "edit" && oldId && oldId !== newId){
         const oldRow = getDepartmentRows().find(x=>x.id===oldId) || { id:oldId, dept:DEPARTMENT_EDIT_OLD_DEPT, task:DEPARTMENT_EDIT_OLD_TASK };
@@ -2888,8 +2925,10 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const payload = {
         dept: cleanDept,
         task: cleanTask,
-        assigneeUid: uid || null,
+        assigneeUid: selectedUids[0] || null,
         assigneeName: u?.name || null,
+        assigneeUids: selectedUids,
+        assigneeNames: selectedUsers.map(x=> x.name || x.email || x.uid),
         active: true,
         deleted: false,
         updatedAt: serverTimestamp(),
@@ -2927,7 +2966,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             </div>
             <div class="dept-card-body">
               ${list.map(r=>{
-                const name = r.assigneeName || resolveDepartmentUserName(r.assigneeUid) || "—";
+                const deptUids = Array.isArray(r.assigneeUids) ? r.assigneeUids : (r.assigneeUid ? [r.assigneeUid] : []);
+                const name = (Array.isArray(r.assigneeNames) && r.assigneeNames.length ? r.assigneeNames.join("، ") : (r.assigneeName || deptUids.map(resolveDepartmentUserName).filter(Boolean).join("، "))) || "—";
                 return `<div class="dept-task-row" data-id="${escapeAttr(r.id)}" data-dept="${escapeAttr(r.dept)}" data-task="${escapeAttr(r.task)}"><div><div class="dept-task-name">${escapeHtml(r.task)}</div><div class="dept-task-meta">المسؤول الحالي: ${escapeHtml(name)}</div></div><select data-dept-assignee="1"></select><div class="dept-task-actions"><button class="btn secondary sm" data-dept-save="1" type="button">حفظ</button><button class="btn ghost sm" data-dept-task-edit="1" type="button">تعديل</button><button class="btn danger sm" data-dept-task-delete="1" type="button">حذف</button></div></div>`;
               }).join("")}
             </div>
@@ -2955,7 +2995,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           try{
             for(const r of deptRows){
               await softDeleteDepartmentTask(r);
-              await saveDepartmentTaskDoc({ dept: cleanNew, task: r.task, uid: r.assigneeUid || "", mode:"create" });
+              await saveDepartmentTaskDoc({ dept: cleanNew, task: r.task, uids: Array.isArray(r.assigneeUids) ? r.assigneeUids : (r.assigneeUid ? [r.assigneeUid] : []), mode:"create" });
             }
             toast("✅ تم تعديل اسم القسم");
           }catch(e){ console.error(e); toast("⚠️ فشل تعديل القسم"); }
@@ -2988,7 +3028,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         const id = row.getAttribute("data-id") || "";
         const item = getDepartmentRows().find(x=>x.id===id) || {};
         const sel = row.querySelector("[data-dept-assignee]");
-        fillDepartmentAssigneeSelect(sel, item.assigneeUid || "");
+        fillDepartmentAssigneeSelect(sel, Array.isArray(item.assigneeUids) ? item.assigneeUids : (item.assigneeUid || ""));
         const saveBtn = row.querySelector("[data-dept-save]");
         const editBtn = row.querySelector("[data-dept-task-edit]");
         const deleteBtn = row.querySelector("[data-dept-task-delete]");
@@ -2996,10 +3036,10 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         saveBtn?.addEventListener("click", async ()=>{
           const dept = row.getAttribute("data-dept") || "";
           const task = row.getAttribute("data-task") || "";
-          const uid = sel?.value || "";
+          const uids = getDepartmentSelectedUids(sel);
           saveBtn.disabled = true;
           try{
-            await saveDepartmentTaskDoc({ oldId:id, dept, task, uid, mode:"edit" });
+            await saveDepartmentTaskDoc({ oldId:id, dept, task, uids, mode:"edit" });
             toast("✅ تم حفظ المسؤول");
           }catch(e){ console.error(e); toast("⚠️ فشل حفظ المسؤول"); }
           finally{ saveBtn.disabled = false; }
@@ -3062,7 +3102,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       $("departmentTaskModalTitle").textContent = mode === "edit" ? "تعديل مهمة قسم" : "إضافة قسم / مهمة";
       $("departmentTaskDept").value = row?.dept || "";
       $("departmentTaskName").value = row?.task || "";
-      fillDepartmentAssigneeSelect($("departmentTaskAssignee"), row?.assigneeUid || "");
+      fillDepartmentAssigneeSelect($("departmentTaskAssignee"), Array.isArray(row?.assigneeUids) ? row.assigneeUids : (row?.assigneeUid || ""));
       $("departmentTaskModal").classList.add("show");
     }
     function closeDepartmentTaskModal(){
@@ -3093,12 +3133,12 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       $("departmentTaskSave")?.addEventListener("click", async ()=>{
         const dept = String($("departmentTaskDept")?.value || "").trim();
         const task = String($("departmentTaskName")?.value || "").trim();
-        const uid = String($("departmentTaskAssignee")?.value || "").trim();
+        const uids = getDepartmentSelectedUids($("departmentTaskAssignee"));
         if(!dept) return toast("اكتب اسم القسم");
         if(!task) return toast("اكتب اسم المهمة");
         $("departmentTaskSave").disabled = true;
         try{
-          await saveDepartmentTaskDoc({ oldId: DEPARTMENT_EDIT_OLD_ID, dept, task, uid, mode: DEPARTMENT_MODAL_MODE });
+          await saveDepartmentTaskDoc({ oldId: DEPARTMENT_EDIT_OLD_ID, dept, task, uids, mode: DEPARTMENT_MODAL_MODE });
           toast(DEPARTMENT_MODAL_MODE === "edit" ? "✅ تم تعديل المهمة" : "✅ تم حفظ مهمة القسم");
           closeDepartmentTaskModal();
         }catch(e){ console.error(e); toast("⚠️ فشل حفظ مهمة القسم"); }
@@ -4598,8 +4638,8 @@ function openDailyTaskModal(ctx){
 
 
     // ===== Dashboard (Home) =====
-    let DASH_WS_ALL = { agenda: [], campaign: [] };
-    let DASH_LAST_SELECTION = { mode:'auto', year:null, month:null, ids:[] };
+    let DASH_WS_ALL = { agenda: [], campaign: [], content: [] };
+    let DASH_LAST_SELECTION = { mode:'auto', year:null, month:null, ids:[], contentIds:[] };
 
     function monthNameFromMM(mm){
       const m = Number(mm);
@@ -4691,21 +4731,56 @@ function openDailyTaskModal(ctx){
       return false;
     }
 
+    function isContentTaskInMonth(t, y, mm){
+      const key = monthKeyFromYM(y, mm);
+      const dates = [t?.requestDate, t?.dueDate, t?.taskCreatedDate, t?.createdDate].map(x=>String(x||'').trim()).filter(Boolean);
+      for(const d of dates){
+        if(/^\d{4}-\d{2}-\d{2}$/.test(d) && d.slice(0,7)===key) return true;
+      }
+      const ts = tsToDate(t?.createdAt);
+      if(ts && monthKeyFromYM(ts.getFullYear(), String(ts.getMonth()+1).padStart(2,'0'))===key) return true;
+      return false;
+    }
+
+    function dashContentDisplayName(t){
+      const first = String(t?.required || 'تاسك محتوى').split('\n')[0].trim();
+      return first || 'تاسك محتوى';
+    }
+
+    function normalizeContentTaskForDash(t){
+      const assigneeUid = t.primaryUid || t.assigneeUid || '';
+      const assigneeName = t.primaryName || contentUserName(assigneeUid) || '';
+      return {
+        ...t,
+        type: 'content',
+        title: dashContentDisplayName(t),
+        column: t.dept || 'المحتوى',
+        specKey: t.required || '',
+        due: t.dueDate || t.due || '',
+        taskCreatedDate: t.requestDate || t.taskCreatedDate || '',
+        assigneeUid,
+        assigneeName
+      };
+    }
+
     async function dashLoadWorkspacesOnce(){
       try{
-        const [aSnap, cSnap] = await Promise.all([
+        const [aSnap, cSnap, contentSnap] = await Promise.all([
           getDocs(query(collection(db,'workspaces'), where('type','==','agenda'))),
-          getDocs(query(collection(db,'workspaces'), where('type','==','campaign')))
+          getDocs(query(collection(db,'workspaces'), where('type','==','campaign'))),
+          getDocs(collection(db,'content_tasks'))
         ]);
-        const agendas=[], campaigns=[];
+        const agendas=[], campaigns=[], content=[];
         aSnap.forEach(d=>{ const x=d.data()||{}; if(x.active===false) return; agendas.push({id:d.id, ...x}); });
         cSnap.forEach(d=>{ const x=d.data()||{}; if(x.active===false) return; campaigns.push({id:d.id, ...x}); });
+        contentSnap.forEach(d=>{ const x=d.data()||{}; if(x.active===false || x.deleted===true) return; content.push({id:d.id, ...x}); });
         agendas.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
         campaigns.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-        DASH_WS_ALL = { agenda: agendas, campaign: campaigns };
+        content.sort((a,b)=> String(a.dueDate||'9999-99-99').localeCompare(String(b.dueDate||'9999-99-99')) || ((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+        DASH_WS_ALL = { agenda: agendas, campaign: campaigns, content };
       }catch(e){
         console.warn('dashLoadWorkspacesOnce', e);
-        DASH_WS_ALL = { agenda: [], campaign: [] };
+        DASH_WS_ALL = { agenda: [], campaign: [], content: [] };
       }
     }
 
@@ -4747,9 +4822,11 @@ function openDailyTaskModal(ctx){
       }
       const set = new Set(precheckedIds);
       pick.innerHTML = items.map(ws=>{
-        const contentText = ws.type==='campaign'
-          ? stripHtml(ws.description || '')
-          : (Array.isArray(ws.columns) ? ws.columns.join('، ') : '');
+        const contentText = ws.type==='content'
+          ? [ws.dept || 'المحتوى', ws.primaryName || contentUserName(ws.primaryUid), ws.dueDate ? ('تسليم: ' + ws.dueDate) : ''].filter(Boolean).join(' — ')
+          : (ws.type==='campaign'
+            ? stripHtml(ws.description || '')
+            : (Array.isArray(ws.columns) ? ws.columns.join('، ') : ''));
         return `
           <label class="pick-row">
             <input type="checkbox" class="dashPickCb" data-type="${escapeAttr(ws.type||'')}" value="${escapeAttr(ws.id)}" ${set.has(ws.id)?'checked':''} />
@@ -4764,16 +4841,19 @@ function openDailyTaskModal(ctx){
     function dashComputeDefaultSelection(mode, yy, mm){
       const agendas = DASH_WS_ALL.agenda.filter(ws=> isAgendaInMonth(ws, yy, mm));
       const campaigns = DASH_WS_ALL.campaign.filter(ws=> isCampaignInMonth(ws, yy, mm));
+      const content = DASH_WS_ALL.content.filter(t=> isContentTaskInMonth(t, yy, mm));
 
       if(mode==='agenda') return agendas;
       if(mode==='campaign') return campaigns;
-      return [...agendas, ...campaigns];
+      if(mode==='content') return content.map(x=> ({...x, type:'content'}));
+      return [...agendas, ...campaigns, ...content.map(x=> ({...x, type:'content'}))];
     }
 
     function dashCollectCheckedIds(){
       const agendaIds = Array.from(document.querySelectorAll('#dashPickAgendas .dashPickCb')).filter(cb=> cb.checked).map(cb=> cb.value);
       const campaignIds = Array.from(document.querySelectorAll('#dashPickCampaigns .dashPickCb')).filter(cb=> cb.checked).map(cb=> cb.value);
-      return { agendaIds, campaignIds, ids:[...agendaIds, ...campaignIds] };
+      const contentIds = Array.from(document.querySelectorAll('#dashPickContent .dashPickCb')).filter(cb=> cb.checked).map(cb=> cb.value);
+      return { agendaIds, campaignIds, contentIds, ids:[...agendaIds, ...campaignIds] };
     }
 
     async function dashLoadTasksForWorkspaces(ids){
@@ -4926,6 +5006,71 @@ function openDailyTaskModal(ctx){
       }).join('');
     }
 
+    function dashRenderContentBlock(containerId, items){
+      const el = $(containerId);
+      if(!el) return;
+      if(!items.length){
+        el.innerHTML = `<div class="dash-empty">لا توجد تاسكات محتوى للعرض.</div>`;
+        return;
+      }
+      const normalized = items.map(normalizeContentTaskForDash);
+      const done = normalized.filter(isTaskDone).length;
+      const late = normalized.filter(isTaskLate).length;
+      const rows = normalized.map(t=>{
+        const doneFlag = isTaskDone(t);
+        const lateFlag = isTaskLate(t);
+        const status = doneFlag ? (t.late ? '⚠️ تم متأخر' : '✅ تم') : (lateFlag ? '⚠️ متأخر' : '⏳ باقي');
+        return `<tr class="dash-row">
+          <td>${escapeHtml(t.column || 'المحتوى')}</td>
+          <td style="font-weight:900">${escapeHtml(t.title || '—')}</td>
+          <td class="dash-status">${status}</td>
+          <td>${escapeHtml(resolveUserDisplayName(t))}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `
+        <div class="dash-ws">
+          <div class="dash-ws-head">
+            <div style="min-width:0">
+              <div class="dash-ws-name">تاسكات المحتوى</div>
+              <div class="dash-ws-meta">المحتوى حسب القسم والمسؤول وتاريخ التسليم</div>
+            </div>
+            <div class="dash-badges">
+              <div class="dash-badge">إجمالي: ${normalized.length}</div>
+              <div class="dash-badge">✅ تم: ${done}</div>
+              <div class="dash-badge">⚠️ متأخر: ${late}</div>
+            </div>
+          </div>
+          <table class="dash-table">
+            <thead><tr><th>القسم</th><th>المطلوب</th><th>الحالة</th><th>المسؤول</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function dashRenderLateUsers(containerId, items){
+      const el = $(containerId);
+      if(!el) return;
+      const map = new Map();
+      items.forEach(t=>{
+        const uids = (t.type === 'content' && Array.isArray(t.participantUids) && t.participantUids.length)
+          ? t.participantUids
+          : [String(t.assigneeUid || t.primaryUid || '')];
+        uids.map(x=>String(x||'').trim()).filter(Boolean).forEach(uid=>{
+          const name = contentUserName(uid) || resolveUserDisplayName({...t, assigneeUid: uid, assigneeName: ''}) || '—';
+          const key = uid || name;
+          const row = map.get(key) || { name, count:0, agenda:0, campaign:0, content:0 };
+          row.count += 1;
+          if(t.type === 'agenda') row.agenda += 1;
+          else if(t.type === 'campaign') row.campaign += 1;
+          else if(t.type === 'content') row.content += 1;
+          map.set(key, row);
+        });
+      });
+      const rows = Array.from(map.values()).sort((a,b)=> b.count-a.count || a.name.localeCompare(b.name,'ar'));
+      if(!rows.length){ el.innerHTML = `<div class="dash-empty">لا توجد تاسكات متأخرة حسب اليوزر.</div>`; return; }
+      el.innerHTML = `<table class="dash-mini-table"><thead><tr><th>اليوزر</th><th>الإجمالي</th><th>أجندات</th><th>حملات</th><th>محتوى</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td><b>${r.count}</b></td><td>${r.agenda}</td><td>${r.campaign}</td><td>${r.content}</td></tr>`).join('')}</tbody></table>`;
+    }
+
     async function dashApply(){
       const mode = String($('dashMode')?.value || 'auto');
       const {yy, mm} = dashGetSelectedMonthYear();
@@ -4935,29 +5080,35 @@ function openDailyTaskModal(ctx){
       const picked = dashCollectCheckedIds();
       let agendaIds = picked.agendaIds || [];
       let campaignIds = picked.campaignIds || [];
+      let contentIds = picked.contentIds || [];
       let ids = picked.ids || [];
-      if(!ids.length){
+      if(!ids.length && !contentIds.length){
         const defaults = dashComputeDefaultSelection(mode, yy, mm);
-        ids = defaults.map(x=> x.id);
+        ids = defaults.filter(x=> x.type!=='content').map(x=> x.id);
         agendaIds = defaults.filter(x=> x.type==='agenda').map(x=> x.id);
         campaignIds = defaults.filter(x=> x.type==='campaign').map(x=> x.id);
+        contentIds = defaults.filter(x=> x.type==='content').map(x=> x.id);
       }
 
       // apply optional limit
       if(limit>0){
         agendaIds = agendaIds.slice(0, limit);
         campaignIds = campaignIds.slice(0, limit);
+        contentIds = contentIds.slice(0, limit);
         ids = [...agendaIds, ...campaignIds];
       }
 
-      DASH_LAST_SELECTION = { mode, year: yy, month: mm, ids: [...ids] };
+      DASH_LAST_SELECTION = { mode, year: yy, month: mm, ids: [...ids], contentIds: [...contentIds] };
 
       // split selected workspaces by type (keep order)
       const selectedAgendas = DASH_WS_ALL.agenda.filter(w=> agendaIds.includes(w.id));
       const selectedCampaigns = DASH_WS_ALL.campaign.filter(w=> campaignIds.includes(w.id));
+      const selectedContent = DASH_WS_ALL.content.filter(t=> contentIds.includes(t.id));
 
       // fetch tasks once
       const tasks = await dashLoadTasksForWorkspaces(ids);
+      const contentDashTasks = selectedContent.map(normalizeContentTaskForDash);
+      const allDashTasks = [...tasks, ...contentDashTasks];
 
       const monthLabel = `${monthNameFromMM(mm)} ${yy}`;
       $('dashMeta').textContent = `عرض: ${monthLabel}`;
@@ -4965,20 +5116,26 @@ function openDailyTaskModal(ctx){
       // metas
       $('dashAgendasMeta').textContent = `${selectedAgendas.length} أجندة`;
       $('dashCampaignsMeta').textContent = `${selectedCampaigns.length} حملة`;
+      if($('dashContentMeta')) $('dashContentMeta').textContent = `${selectedContent.length} تاسك محتوى`;
 
-      const doneTasks = tasks.filter(isTaskDone).slice(0, 20);
-      const lateTasks = tasks.filter(isTaskLate).slice(0, 20);
-      $('dashTasksMeta').textContent = `منتهي: ${doneTasks.length} | متأخر: ${lateTasks.length}`;
+      const doneAll = allDashTasks.filter(isTaskDone);
+      const lateAll = allDashTasks.filter(isTaskLate);
+      const doneTasks = doneAll.slice(0, 20);
+      const lateTasks = lateAll.slice(0, 20);
+      $('dashTasksMeta').textContent = `منتهي: ${doneAll.length} | متأخر: ${lateAll.length}`;
 
       // show/hide cards based on mode
-      $('dashAgendasCard').style.display = (mode==='campaign') ? 'none' : '';
-      $('dashCampaignsCard').style.display = (mode==='agenda') ? 'none' : '';
+      $('dashAgendasCard').style.display = (mode==='campaign' || mode==='content') ? 'none' : '';
+      $('dashCampaignsCard').style.display = (mode==='agenda' || mode==='content') ? 'none' : '';
+      if($('dashContentCard')) $('dashContentCard').style.display = (mode==='agenda' || mode==='campaign') ? 'none' : '';
       $('dashTasksCard').style.display = '';
 
       dashRenderWorkspacesBlock('dashAgendas', selectedAgendas, tasks);
       dashRenderWorkspacesBlock('dashCampaigns', selectedCampaigns, tasks);
+      dashRenderContentBlock('dashContentTasks', selectedContent);
       dashRenderTaskSummary('dashDoneTasks', doneTasks, 'لا توجد تاسكات منتهية.');
       dashRenderTaskSummary('dashLateTasks', lateTasks, 'لا توجد تاسكات متأخرة.');
+      dashRenderLateUsers('dashLateUsers', lateAll);
     }
 
     function dashUpdatePickerByMode(){
@@ -4988,17 +5145,21 @@ function openDailyTaskModal(ctx){
 
       let agendas = DASH_WS_ALL.agenda.filter(ws=> isAgendaInMonth(ws, yy, mm));
       let campaigns = DASH_WS_ALL.campaign.filter(ws=> isCampaignInMonth(ws, yy, mm));
+      let content = DASH_WS_ALL.content.filter(t=> isContentTaskInMonth(t, yy, mm)).map(x=> ({...x, type:'content'}));
 
       if(limit>0){
         agendas = agendas.slice(0, limit);
         campaigns = campaigns.slice(0, limit);
+        content = content.slice(0, limit);
       }
 
-      if(mode==='agenda') campaigns = [];
-      if(mode==='campaign') agendas = [];
+      if(mode==='agenda'){ campaigns = []; content = []; }
+      if(mode==='campaign'){ agendas = []; content = []; }
+      if(mode==='content'){ agendas = []; campaigns = []; }
 
       dashRenderPicker('dashPickAgendas', agendas, agendas.map(x=>x.id));
       dashRenderPicker('dashPickCampaigns', campaigns, campaigns.map(x=>x.id));
+      dashRenderPicker('dashPickContent', content, content.map(x=>x.id));
     }
 
     async function initDashboardHome(){
@@ -5685,6 +5846,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(!title) return toast("اكتب اسم التاسك");
 
       const hasSpecKey = !!specKey;
+      if(isCampaign && !due) return toast("حدد تاريخ تسليم التاسك للحملة");
 
       // الأجندة: Unique Spec Key إلزامي
       if(!isCampaign){
