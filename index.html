@@ -8,6 +8,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -838,6 +839,22 @@
     .dash-table th:nth-child(3), .dash-table td:nth-child(3){width:16%; text-align:center;}
     .dash-table th:nth-child(4), .dash-table td:nth-child(4){width:30%;}
 
+
+    /* ===== Departments Tab (isolated) ===== */
+    .dept-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    @media(max-width:980px){.dept-grid{grid-template-columns:1fr}}
+    .dept-card{background:#fff;border:1px solid #efe5dd;border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+    .dept-card-head{padding:14px;background:linear-gradient(180deg,#fff,#fff8ef);border-bottom:1px solid #f1e7df;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .dept-card-title{margin:0;color:var(--brown);font-weight:1000;font-size:15px}
+    .dept-card-body{padding:12px;display:grid;gap:10px}
+    .dept-task-row{display:grid;grid-template-columns:1.4fr 1fr auto;gap:10px;align-items:center;background:#fff;border:1px solid rgba(62,36,32,.10);border-radius:14px;padding:10px}
+    .dept-task-name{font-weight:900;color:var(--brown);line-height:1.5}
+    .dept-task-meta{font-size:12px;color:var(--muted);margin-top:4px}
+    .dept-task-row select{height:42px;border-radius:12px}
+    .dept-card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .dept-task-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    @media(max-width:720px){.dept-task-row{grid-template-columns:1fr}.dept-task-row .btn{width:100%}.dept-card-actions,.dept-task-actions{justify-content:stretch}.dept-task-actions .btn{flex:1}}
+
   </style>
 </head>
 
@@ -909,6 +926,11 @@
         <div class="sb-link" id="navCampaigns">
           <div class="sb-ico">📣</div>
           <div class="sb-text">الحملات</div>
+        </div>
+
+        <div class="sb-link" id="navDepartments">
+          <div class="sb-ico">🏢</div>
+          <div class="sb-text">الأقسام</div>
         </div>
 
         <div class="sb-link" id="navDaily">
@@ -1147,6 +1169,24 @@
           <div class="table-wrap" id="stockTableWrap" style="display:none">
             <table class="stock-table" id="stockTable"></table>
           </div>
+        </div>
+      </section>
+
+
+      <section class="panel" id="viewDepartments" style="display:none">
+        <div class="head">
+          <div>
+            <strong>الأقسام</strong>
+            <span class="muted">إدارة أقسام التسويق والمهام والمسؤولين</span>
+          </div>
+          <div class="actions">
+            <button class="btn secondary sm" id="btnDepartmentsRefresh" type="button">⟳ تحديث</button>
+            <button class="btn sm" id="btnDepartmentTaskAdd" type="button">➕ إضافة قسم / مهمة</button>
+          </div>
+        </div>
+        <div class="body">
+          <div class="empty" id="departmentsEmpty" style="display:none">لا توجد مهام أقسام حالياً.</div>
+          <div class="dept-grid" id="departmentsGrid"></div>
         </div>
       </section>
 
@@ -1600,6 +1640,57 @@
     </div>
   </div>
 
+
+  <!-- Departments Task Modal -->
+  <div class="modal" id="departmentTaskModal">
+    <div class="sheet" style="width:min(760px, 100%)">
+      <div class="m-head">
+        <strong id="departmentTaskModalTitle">إضافة مهمة قسم</strong>
+        <button class="btn secondary xs" id="departmentTaskClose" type="button">إغلاق</button>
+      </div>
+      <div class="m-body">
+        <div class="grid2">
+          <div>
+            <label>القسم</label>
+            <input id="departmentTaskDept" list="departmentNamesList" placeholder="اختر أو اكتب اسم القسم" />
+            <datalist id="departmentNamesList"></datalist>
+          </div>
+          <div>
+            <label>المسؤول</label>
+            <select id="departmentTaskAssignee"><option value="">— اختر المسؤول —</option></select>
+          </div>
+        </div>
+        <div><label>اسم المهمة</label><input id="departmentTaskName" placeholder="اكتب اسم المهمة" /></div>
+      </div>
+      <div class="m-foot">
+        <button class="btn secondary" id="departmentTaskCancel" type="button">إلغاء</button>
+        <button class="btn" id="departmentTaskSave" type="button">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Departments Action Modal (بديل prompt/confirm للتاب فقط) -->
+  <div class="modal" id="departmentActionModal">
+    <div class="sheet" style="width:min(620px, 100%)">
+      <div class="m-head">
+        <strong id="departmentActionTitle">...</strong>
+        <button class="btn secondary xs" id="departmentActionClose" type="button">إغلاق</button>
+      </div>
+      <div class="m-body">
+        <div class="hint" id="departmentActionMsg" style="color:var(--muted);font-size:13px"></div>
+        <div id="departmentActionInputWrap" style="display:none">
+          <label id="departmentActionInputLabel">القيمة</label>
+          <input id="departmentActionInput" placeholder="اكتب هنا..." />
+        </div>
+      </div>
+      <div class="m-foot">
+        <button class="btn secondary" id="departmentActionCancel" type="button">إلغاء</button>
+        <button class="btn" id="departmentActionOk" type="button">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
 <div class="toast" id="toast">...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1941,7 +2032,7 @@ function initials(name){
     });
     if(localStorage.getItem("ws_sb_collapsed")==="1") appEl.classList.add("collapsed");
 
-    const views = { home: $("viewHome"), list: $("viewList"), board: $("viewBoard"), daily: $("viewDaily"), stock: $("viewStock"), admin: $("viewAdmin") };
+    const views = { home: $("viewHome"), list: $("viewList"), board: $("viewBoard"), daily: $("viewDaily"), stock: $("viewStock"), departments: $("viewDepartments"), admin: $("viewAdmin") };
 
     // Last rendered rows for Excel export (stock tab)
     let __LAST_STOCK_ROWS = [];
@@ -2061,6 +2152,7 @@ function initials(name){
       if(state.view==="list") return openList(state.type||"agenda");
       if(state.view==="daily") return openDaily();
       if(state.view==="stock") return openStock();
+      if(state.view==="departments") return openDepartments();
       if(state.view==="admin") return openAdmin();
       if(state.view==="board"){
         try{
@@ -2095,13 +2187,14 @@ let MODE = "home";
     });
 
     function setNavActive(which){
-      ["navHome","navAgendas","navCampaigns","navDaily","navStock","navAdmin"].forEach(id=>{
+      ["navHome","navAgendas","navCampaigns","navDepartments","navDaily","navStock","navAdmin"].forEach(id=>{
         $(id).classList.toggle("active", id===which);
       });
     }
     $("navHome").addEventListener("click", ()=> openHome());
     $("navAgendas").addEventListener("click", ()=> openList("agenda"));
     $("navCampaigns").addEventListener("click", ()=> openList("campaign"));
+    $("navDepartments").addEventListener("click", ()=> openDepartments());
 
     $("navDaily").addEventListener("click", ()=> openDaily());
 
@@ -2515,6 +2608,355 @@ let unsubKpiWs=null, unsubKpiTasks=null;
 
 
 
+    // ===== Departments Tab (isolated from agendas/campaigns/daily/stock) =====
+    const DEPARTMENT_DEFAULTS = {
+      "التصوير": ["تصوير صور", "تصوير فيديو"],
+      "المحتوى": ["محتوى أجندة شهري", "محتوى حملات", "محتوى مناديب شخصية", "محتوى الموقع + اليوتيوب"],
+      "التصميم": ["تصميم صور", "ايدت صور", "تصميم فيديو", "تصميم فيديو AI"],
+      "النشر و التمويل": ["نشر أجندة شهري", "نشر حملات", "نشر مناديب شخصية", "نشر الموقع + اليوتيوب"],
+      "تقارير": ["تقرير الصفحات", "تقرير الحملات", "تقرير شامل عن ادارة التسويق"]
+    };
+    let DEPARTMENT_DOCS = [];
+    let unsubDepartments = null;
+    let DEPARTMENT_MODAL_MODE = "create";
+    let DEPARTMENT_EDIT_OLD_ID = null;
+    let DEPARTMENT_EDIT_OLD_DEPT = "";
+    let DEPARTMENT_EDIT_OLD_TASK = "";
+    let DEPARTMENT_ACTION_RESOLVE = null;
+
+    function openDepartmentActionModal(opts={}){
+      const modal = $("departmentActionModal");
+      const titleEl = $("departmentActionTitle");
+      const msgEl = $("departmentActionMsg");
+      const wrapEl = $("departmentActionInputWrap");
+      const labelEl = $("departmentActionInputLabel");
+      const inputEl = $("departmentActionInput");
+      const okBtn = $("departmentActionOk");
+      const cancelBtn = $("departmentActionCancel");
+      if(!modal || !okBtn || !cancelBtn) return Promise.resolve(null);
+      titleEl.textContent = opts.title || "تأكيد";
+      msgEl.textContent = opts.message || "";
+      const hasInput = opts.input === true;
+      wrapEl.style.display = hasInput ? "" : "none";
+      labelEl.textContent = opts.inputLabel || "القيمة";
+      inputEl.value = opts.defaultValue || "";
+      okBtn.textContent = opts.okText || "تأكيد";
+      okBtn.className = opts.danger ? "btn danger" : "btn";
+      cancelBtn.textContent = opts.cancelText || "إلغاء";
+      modal.classList.add("show");
+      if(hasInput) setTimeout(()=>{ try{ inputEl.focus(); inputEl.select(); }catch(_e){} }, 50);
+      return new Promise((resolve)=>{ DEPARTMENT_ACTION_RESOLVE = resolve; });
+    }
+
+    function closeDepartmentActionModal(value=null){
+      const modal = $("departmentActionModal");
+      if(modal) modal.classList.remove("show");
+      if(DEPARTMENT_ACTION_RESOLVE){
+        const r = DEPARTMENT_ACTION_RESOLVE;
+        DEPARTMENT_ACTION_RESOLVE = null;
+        r(value);
+      }
+    }
+
+    function departmentDocId(dept, task){
+      return encodeURIComponent(`${String(dept||"").trim()}__${String(task||"").trim()}`);
+    }
+    function getDepartmentBaseRows(){
+      const rows = [];
+      Object.entries(DEPARTMENT_DEFAULTS).forEach(([dept, tasks])=>{
+        (tasks||[]).forEach(task=> rows.push({ id: departmentDocId(dept, task), dept, task, assigneeUid: "", assigneeName: "", isDefault: true, active:true }));
+      });
+      return rows;
+    }
+    function mergeDepartmentRows(saved){
+      const map = new Map();
+      getDepartmentBaseRows().forEach(r=> map.set(r.id, r));
+      (Array.isArray(saved)?saved:[]).forEach(d=>{
+        const dept = String(d.dept || d.department || "").trim();
+        const task = String(d.task || d.title || "").trim();
+        const id = d.id || departmentDocId(dept, task);
+        if(d.deleted === true || d.active === false){
+          map.delete(id);
+          return;
+        }
+        if(!dept || !task) return;
+        map.set(id, { ...map.get(id), ...d, id, dept, task, active: d.active !== false });
+      });
+      return Array.from(map.values()).filter(x=> x && x.active !== false && x.deleted !== true);
+    }
+    function getDepartmentRows(){
+      return mergeDepartmentRows(DEPARTMENT_DOCS);
+    }
+    function getDepartmentNames(){
+      const set = new Set(Object.keys(DEPARTMENT_DEFAULTS));
+      getDepartmentRows().forEach(r=>{ if(r.dept) set.add(r.dept); });
+      return Array.from(set);
+    }
+    function fillDepartmentNamesList(){
+      const list = $("departmentNamesList");
+      if(list) list.innerHTML = getDepartmentNames().map(d=>`<option value="${escapeAttr(d)}"></option>`).join("");
+    }
+    function fillDepartmentAssigneeSelect(selectEl, selectedUid=""){
+      if(!selectEl) return;
+      selectEl.innerHTML = `<option value="">— اختر المسؤول —</option>`;
+      USERS.slice().sort((a,b)=> (a.name||"").localeCompare(b.name||"", "ar")).forEach(u=>{
+        const opt = document.createElement("option");
+        opt.value = u.uid;
+        opt.textContent = u.name + (u.role ? ` (${u.role})` : "");
+        selectEl.appendChild(opt);
+      });
+      selectEl.value = String(selectedUid || "");
+    }
+    function resolveDepartmentUserName(uid){
+      const u = USERS.find(x=> String(x.uid||"") === String(uid||""));
+      return u?.name || "";
+    }
+    async function softDeleteDepartmentTask(row){
+      if(!row?.id) return;
+      await setDoc(doc(db,"departments_tasks", row.id), {
+        dept: row.dept || "",
+        task: row.task || "",
+        active: false,
+        deleted: true,
+        deletedAt: serverTimestamp(),
+        deletedBy: CURRENT_USER?.uid || null,
+        updatedAt: serverTimestamp(),
+        updatedBy: CURRENT_USER?.uid || null
+      }, { merge:true });
+    }
+    async function saveDepartmentTaskDoc({ oldId=null, dept, task, uid="", mode="create" }){
+      const cleanDept = String(dept||"").trim();
+      const cleanTask = String(task||"").trim();
+      if(!cleanDept) throw new Error("missing-dept");
+      if(!cleanTask) throw new Error("missing-task");
+      const u = USERS.find(x=>x.uid===uid);
+      const newId = departmentDocId(cleanDept, cleanTask);
+      if(mode === "edit" && oldId && oldId !== newId){
+        const oldRow = getDepartmentRows().find(x=>x.id===oldId) || { id:oldId, dept:DEPARTMENT_EDIT_OLD_DEPT, task:DEPARTMENT_EDIT_OLD_TASK };
+        await softDeleteDepartmentTask(oldRow);
+      }
+      const payload = {
+        dept: cleanDept,
+        task: cleanTask,
+        assigneeUid: uid || null,
+        assigneeName: u?.name || null,
+        active: true,
+        deleted: false,
+        updatedAt: serverTimestamp(),
+        updatedBy: CURRENT_USER?.uid || null
+      };
+      if(mode === "create"){
+        payload.createdAt = serverTimestamp();
+        payload.createdBy = CURRENT_USER?.uid || null;
+      }
+      await setDoc(doc(db,"departments_tasks", newId), payload, { merge:true });
+      return newId;
+    }
+    function renderDepartments(){
+      const grid = $("departmentsGrid"), empty = $("departmentsEmpty");
+      if(!grid || !empty) return;
+      const rows = getDepartmentRows();
+      empty.style.display = rows.length ? "none" : "";
+      const byDept = {};
+      rows.forEach(r=>{ (byDept[r.dept] ||= []).push(r); });
+      const deptOrder = Object.keys(DEPARTMENT_DEFAULTS);
+      Object.keys(byDept).forEach(d=>{ if(!deptOrder.includes(d)) deptOrder.push(d); });
+      grid.innerHTML = deptOrder.filter(d=>byDept[d]?.length).map(dept=>{
+        const list = (byDept[dept] || []).slice().sort((a,b)=> String(a.task||"").localeCompare(String(b.task||""),"ar"));
+        return `
+          <div class="dept-card" data-dept-card="${escapeAttr(dept)}">
+            <div class="dept-card-head">
+              <div style="min-width:0">
+                <h3 class="dept-card-title">${escapeHtml(dept)}</h3>
+                <div class="muted" style="font-size:12px;margin-top:4px">${list.length} مهام</div>
+              </div>
+              <div class="dept-card-actions">
+                <button class="btn ghost xs" data-dept-edit="${escapeAttr(dept)}" type="button">✏️ تعديل القسم</button>
+                <button class="btn danger xs" data-dept-delete="${escapeAttr(dept)}" type="button">🗑️ حذف القسم</button>
+              </div>
+            </div>
+            <div class="dept-card-body">
+              ${list.map(r=>{
+                const name = r.assigneeName || resolveDepartmentUserName(r.assigneeUid) || "—";
+                return `<div class="dept-task-row" data-id="${escapeAttr(r.id)}" data-dept="${escapeAttr(r.dept)}" data-task="${escapeAttr(r.task)}"><div><div class="dept-task-name">${escapeHtml(r.task)}</div><div class="dept-task-meta">المسؤول الحالي: ${escapeHtml(name)}</div></div><select data-dept-assignee="1"></select><div class="dept-task-actions"><button class="btn secondary sm" data-dept-save="1" type="button">حفظ</button><button class="btn ghost sm" data-dept-task-edit="1" type="button">تعديل</button><button class="btn danger sm" data-dept-task-delete="1" type="button">حذف</button></div></div>`;
+              }).join("")}
+            </div>
+          </div>`;
+      }).join("");
+
+      grid.querySelectorAll("[data-dept-edit]").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const oldDept = btn.getAttribute("data-dept-edit") || "";
+          const newDept = await openDepartmentActionModal({
+            title: "تعديل اسم القسم",
+            message: "اكتب اسم القسم الجديد بدون أي نافذة من المتصفح.",
+            input: true,
+            inputLabel: "اسم القسم الجديد",
+            defaultValue: oldDept,
+            okText: "حفظ التعديل"
+          });
+          if(newDept === null) return;
+          const cleanNew = String(newDept||"").trim();
+          if(!cleanNew) return toast("اكتب اسم القسم");
+          if(cleanNew === oldDept) return;
+          const deptRows = getDepartmentRows().filter(x=>x.dept===oldDept);
+          if(!deptRows.length) return;
+          btn.disabled = true;
+          try{
+            for(const r of deptRows){
+              await softDeleteDepartmentTask(r);
+              await saveDepartmentTaskDoc({ dept: cleanNew, task: r.task, uid: r.assigneeUid || "", mode:"create" });
+            }
+            toast("✅ تم تعديل اسم القسم");
+          }catch(e){ console.error(e); toast("⚠️ فشل تعديل القسم"); }
+          finally{ btn.disabled = false; }
+        });
+      });
+
+      grid.querySelectorAll("[data-dept-delete]").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const dept = btn.getAttribute("data-dept-delete") || "";
+          if(!dept) return;
+          const ok = await openDepartmentActionModal({
+            title: "حذف القسم",
+            message: `تأكيد حذف قسم: ${dept} ؟ سيتم إخفاء كل المهام التابعة له.`,
+            okText: "حذف القسم",
+            danger: true
+          });
+          if(ok !== true) return;
+          const deptRows = getDepartmentRows().filter(x=>x.dept===dept);
+          btn.disabled = true;
+          try{
+            for(const r of deptRows){ await softDeleteDepartmentTask(r); }
+            toast("✅ تم حذف القسم");
+          }catch(e){ console.error(e); toast("⚠️ فشل حذف القسم"); }
+          finally{ btn.disabled = false; }
+        });
+      });
+
+      grid.querySelectorAll(".dept-task-row").forEach(row=>{
+        const id = row.getAttribute("data-id") || "";
+        const item = getDepartmentRows().find(x=>x.id===id) || {};
+        const sel = row.querySelector("[data-dept-assignee]");
+        fillDepartmentAssigneeSelect(sel, item.assigneeUid || "");
+        const saveBtn = row.querySelector("[data-dept-save]");
+        const editBtn = row.querySelector("[data-dept-task-edit]");
+        const deleteBtn = row.querySelector("[data-dept-task-delete]");
+
+        saveBtn?.addEventListener("click", async ()=>{
+          const dept = row.getAttribute("data-dept") || "";
+          const task = row.getAttribute("data-task") || "";
+          const uid = sel?.value || "";
+          saveBtn.disabled = true;
+          try{
+            await saveDepartmentTaskDoc({ oldId:id, dept, task, uid, mode:"edit" });
+            toast("✅ تم حفظ المسؤول");
+          }catch(e){ console.error(e); toast("⚠️ فشل حفظ المسؤول"); }
+          finally{ saveBtn.disabled = false; }
+        });
+
+        editBtn?.addEventListener("click", ()=>{
+          const current = getDepartmentRows().find(x=>x.id===id) || item;
+          openDepartmentTaskModal("edit", current);
+        });
+
+        deleteBtn?.addEventListener("click", async ()=>{
+          const current = getDepartmentRows().find(x=>x.id===id) || item;
+          if(!current?.id) return;
+          const ok = await openDepartmentActionModal({
+            title: "حذف المهمة",
+            message: `تأكيد حذف المهمة: ${current.task || ""} ؟`,
+            okText: "حذف المهمة",
+            danger: true
+          });
+          if(ok !== true) return;
+          deleteBtn.disabled = true;
+          try{
+            await softDeleteDepartmentTask(current);
+            toast("✅ تم حذف المهمة");
+          }catch(e){ console.error(e); toast("⚠️ فشل حذف المهمة"); }
+          finally{ deleteBtn.disabled = false; }
+        });
+      });
+    }
+    function listenDepartments(){
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
+      unsubDepartments = onSnapshot(collection(db,"departments_tasks"), (snap)=>{
+        const items=[]; snap.forEach(d=> items.push({ id:d.id, ...(d.data()||{}) }));
+        items.sort((a,b)=> String(a.dept||"").localeCompare(String(b.dept||""),"ar") || String(a.task||"").localeCompare(String(b.task||""),"ar"));
+        DEPARTMENT_DOCS = items; renderDepartments();
+      }, (err)=>{ console.error(err); toast("⚠️ فشل تحميل الأقسام"); DEPARTMENT_DOCS = []; renderDepartments(); });
+    }
+    function openDepartments(){
+      MODE="departments"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
+      saveLastView("departments");
+      if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
+      if(unsubTasks){unsubTasks();unsubTasks=null;}
+      if(unsubDaily){unsubDaily();unsubDaily=null;}
+      setNavActive("navDepartments");
+      $("pageTitle").textContent = "الأقسام";
+      $("pageDesc").textContent  = "إضافة وتعديل وحذف أقسام التسويق والمهام واختيار المسؤول لكل مهمة.";
+      $("btnBack").style.display="none";
+      $("btnCreateAgenda").style.display="none";
+      $("btnCreateCampaign").style.display="none";
+      showView("departments");
+      renderDepartments();
+      listenDepartments();
+    }
+    function openDepartmentTaskModal(mode="create", row=null){
+      DEPARTMENT_MODAL_MODE = mode;
+      DEPARTMENT_EDIT_OLD_ID = row?.id || null;
+      DEPARTMENT_EDIT_OLD_DEPT = row?.dept || "";
+      DEPARTMENT_EDIT_OLD_TASK = row?.task || "";
+      fillDepartmentNamesList();
+      $("departmentTaskModalTitle").textContent = mode === "edit" ? "تعديل مهمة قسم" : "إضافة قسم / مهمة";
+      $("departmentTaskDept").value = row?.dept || "";
+      $("departmentTaskName").value = row?.task || "";
+      fillDepartmentAssigneeSelect($("departmentTaskAssignee"), row?.assigneeUid || "");
+      $("departmentTaskModal").classList.add("show");
+    }
+    function closeDepartmentTaskModal(){
+      $("departmentTaskModal")?.classList.remove("show");
+      DEPARTMENT_MODAL_MODE = "create";
+      DEPARTMENT_EDIT_OLD_ID = null;
+      DEPARTMENT_EDIT_OLD_DEPT = "";
+      DEPARTMENT_EDIT_OLD_TASK = "";
+    }
+    try{
+      $("departmentActionClose")?.addEventListener("click", ()=> closeDepartmentActionModal(null));
+      $("departmentActionCancel")?.addEventListener("click", ()=> closeDepartmentActionModal(null));
+      $("departmentActionOk")?.addEventListener("click", ()=>{
+        const wrap = $("departmentActionInputWrap");
+        const input = $("departmentActionInput");
+        closeDepartmentActionModal(wrap && wrap.style.display !== "none" ? (input?.value || "") : true);
+      });
+      $("departmentActionInput")?.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter") closeDepartmentActionModal($("departmentActionInput")?.value || "");
+        if(e.key === "Escape") closeDepartmentActionModal(null);
+      });
+      $("departmentActionModal")?.addEventListener("click", (e)=>{ if(e.target===$("departmentActionModal")) closeDepartmentActionModal(null); });
+      $("btnDepartmentsRefresh")?.addEventListener("click", ()=>{ if(MODE==="departments") listenDepartments(); });
+      $("btnDepartmentTaskAdd")?.addEventListener("click", ()=> openDepartmentTaskModal("create"));
+      $("departmentTaskClose")?.addEventListener("click", closeDepartmentTaskModal);
+      $("departmentTaskCancel")?.addEventListener("click", closeDepartmentTaskModal);
+      $("departmentTaskModal")?.addEventListener("click", (e)=>{ if(e.target===$("departmentTaskModal")) closeDepartmentTaskModal(); });
+      $("departmentTaskSave")?.addEventListener("click", async ()=>{
+        const dept = String($("departmentTaskDept")?.value || "").trim();
+        const task = String($("departmentTaskName")?.value || "").trim();
+        const uid = String($("departmentTaskAssignee")?.value || "").trim();
+        if(!dept) return toast("اكتب اسم القسم");
+        if(!task) return toast("اكتب اسم المهمة");
+        $("departmentTaskSave").disabled = true;
+        try{
+          await saveDepartmentTaskDoc({ oldId: DEPARTMENT_EDIT_OLD_ID, dept, task, uid, mode: DEPARTMENT_MODAL_MODE });
+          toast(DEPARTMENT_MODAL_MODE === "edit" ? "✅ تم تعديل المهمة" : "✅ تم حفظ مهمة القسم");
+          closeDepartmentTaskModal();
+        }catch(e){ console.error(e); toast("⚠️ فشل حفظ مهمة القسم"); }
+        finally{ $("departmentTaskSave").disabled = false; }
+      });
+    }catch(_e){}
+
+
     function openStock(){
       if(isMemberOnly()) return openList("agenda");
       MODE="stock"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
@@ -2522,6 +2964,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
       if(unsubTasks){unsubTasks();unsubTasks=null;}
       if(unsubDaily){unsubDaily();unsubDaily=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
 
       setNavActive("navStock");
       $("pageTitle").textContent = "stock";
@@ -2540,6 +2983,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
       if(unsubTasks){unsubTasks();unsubTasks=null;}
       if(unsubDaily){unsubDaily();unsubDaily=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
 
       saveLastView("admin");
       setNavActive("navAdmin");
@@ -2583,6 +3027,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(unsubTasks){unsubTasks();unsubTasks=null;}
       if(unsubDaily){unsubDaily();unsubDaily=null;}
       if(unsubDailyNotes){unsubDailyNotes();unsubDailyNotes=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
 
       setNavActive("navDaily");
       $("pageTitle").textContent = "Daily Task";
@@ -3983,6 +4428,7 @@ function openDailyTaskModal(ctx){
       if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
       if(unsubTasks){unsubTasks();unsubTasks=null;}
       if(unsubDaily){unsubDaily();unsubDaily=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
 
       setNavActive("navHome");
       $("pageTitle").textContent = "الداش بورد";
@@ -4024,6 +4470,7 @@ function openDailyTaskModal(ctx){
       CURRENT_WORKSPACE = null;
       if(unsubTasks){unsubTasks();unsubTasks=null;}
       if(unsubDaily){unsubDaily();unsubDaily=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
 
       setNavActive(type==="agenda" ? "navAgendas" : "navCampaigns");
 
