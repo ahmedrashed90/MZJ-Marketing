@@ -840,6 +840,27 @@
     .dash-table th:nth-child(4), .dash-table td:nth-child(4){width:30%;}
 
 
+    /* ===== Content Tab (isolated) ===== */
+    .content-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .content-toolbar select,.content-toolbar input{min-width:180px;height:42px}
+    .content-table{width:100%;border-collapse:separate;border-spacing:0 8px;min-width:1180px}
+    .content-table th{font-size:12px;color:var(--muted);text-align:right;padding:0 10px 6px;white-space:nowrap}
+    .content-table td{padding:10px;background:#fff;border-top:1px solid #efe5dd;border-bottom:1px solid #efe5dd;vertical-align:top}
+    .content-table td:first-child{border-right:1px solid #efe5dd;border-radius:0 14px 14px 0}
+    .content-table td:last-child{border-left:1px solid #efe5dd;border-radius:14px 0 0 14px}
+    .content-status{font-weight:900;border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid #eadfd7;background:#fff8ef;color:var(--brown);white-space:nowrap}
+    .content-status.done{background:#f0fdf4;border-color:rgba(22,163,74,.25);color:#166534}
+    .content-status.late{background:#fef2f2;border-color:rgba(185,28,28,.20);color:#991b1b}
+    .content-card-title{font-weight:1000;color:var(--brown);line-height:1.5;max-width:280px}
+    .content-card-text{font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px;max-width:360px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .content-files{display:flex;gap:8px;flex-wrap:wrap}
+    .content-file-link{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#fff8ef;border:1px solid rgba(188,143,116,.30);color:var(--brown);font-size:12px;font-weight:800}
+    .content-detail-box{border:1px solid #efe5dd;border-radius:14px;padding:12px;background:#fff;line-height:1.8;white-space:pre-wrap}
+    .content-check-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #efe5dd;border-radius:14px;padding:10px}
+    .content-check-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--beige)}
+    @media(max-width:860px){.content-toolbar select,.content-toolbar input{min-width:100%;}.content-table{min-width:980px}}
+
+
     /* ===== Departments Tab (isolated) ===== */
     .dept-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
     @media(max-width:980px){.dept-grid{grid-template-columns:1fr}}
@@ -931,6 +952,11 @@
         <div class="sb-link" id="navDepartments">
           <div class="sb-ico">🏢</div>
           <div class="sb-text">الأقسام</div>
+        </div>
+
+        <div class="sb-link" id="navContent">
+          <div class="sb-ico">📝</div>
+          <div class="sb-text">المحتوى</div>
         </div>
 
         <div class="sb-link" id="navDaily">
@@ -1187,6 +1213,35 @@
         <div class="body">
           <div class="empty" id="departmentsEmpty" style="display:none">لا توجد مهام أقسام حالياً.</div>
           <div class="dept-grid" id="departmentsGrid"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="viewContent" style="display:none">
+        <div class="head">
+          <div>
+            <strong>المحتوى</strong>
+            <span class="muted">إدارة تاسكات المحتوى حسب القسم والمسؤولين وتاريخ التسليم</span>
+          </div>
+          <div class="actions">
+            <button class="btn secondary sm" id="btnContentRefresh" type="button">⟳ تحديث</button>
+            <button class="btn sm" id="btnContentTaskAdd" type="button">➕ إضافة تاسك محتوى</button>
+          </div>
+        </div>
+        <div class="body">
+          <div class="content-toolbar" style="margin-bottom:12px">
+            <select id="contentFilterStatus">
+              <option value="active">المفتوحة فقط</option>
+              <option value="done">المنتهية فقط</option>
+              <option value="late">المتأخرة فقط</option>
+              <option value="all">كل التاسكات</option>
+            </select>
+            <select id="contentFilterDept"><option value="">كل الأقسام</option></select>
+            <input id="contentSearch" placeholder="بحث في المطلوب أو المسؤول..." />
+          </div>
+          <div class="empty" id="contentEmpty" style="display:none">لا توجد تاسكات محتوى حالياً.</div>
+          <div class="table-wrap" id="contentTableWrap" style="display:none">
+            <table class="content-table" id="contentTable"></table>
+          </div>
         </div>
       </section>
 
@@ -1691,6 +1746,79 @@
     </div>
   </div>
 
+
+  <!-- Content Task Modal -->
+  <div class="modal" id="contentTaskModal">
+    <div class="sheet" style="width:min(940px, 100%)">
+      <div class="m-head">
+        <strong id="contentTaskModalTitle">إضافة تاسك محتوى</strong>
+        <button class="btn secondary xs" id="contentTaskClose" type="button">إغلاق</button>
+      </div>
+      <div class="m-body">
+        <div class="grid2">
+          <div>
+            <label>القسم</label>
+            <select id="contentTaskDept"><option value="">— اختر القسم —</option></select>
+          </div>
+          <div>
+            <label>المسؤول الأساسي</label>
+            <select id="contentTaskPrimary"><option value="">— اختر المسؤول —</option></select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>مشارك في التنفيذ (اختياري)</label>
+            <select id="contentTaskPartner"><option value="">— بدون مشارك —</option></select>
+          </div>
+          <div>
+            <label>حالة المراجعة</label>
+            <select id="contentTaskReviewed">
+              <option value="false">❌ لم يتم المراجعة</option>
+              <option value="true">✅ تم المراجعة</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>تاريخ الطلب</label>
+            <input id="contentTaskRequestDate" type="date" />
+          </div>
+          <div>
+            <label>تاريخ التسليم</label>
+            <input id="contentTaskDueDate" type="date" />
+          </div>
+        </div>
+        <div>
+          <label>المطلوب</label>
+          <textarea id="contentTaskRequired" placeholder="اكتب المطلوب بالتفصيل..."></textarea>
+        </div>
+        <div>
+          <label>إرفاق ملفات</label>
+          <input id="contentTaskFiles" type="file" multiple />
+          <div class="hint" style="color:var(--muted);margin-top:6px">يمكن إرفاق أكثر من ملف. الملفات الحالية تظهر عند فتح التاسك.</div>
+          <div class="content-files" id="contentTaskExistingFiles" style="margin-top:10px"></div>
+        </div>
+      </div>
+      <div class="m-foot">
+        <button class="btn danger" id="contentTaskDelete" style="display:none" type="button">حذف</button>
+        <button class="btn secondary" id="contentTaskCancel" type="button">إلغاء</button>
+        <button class="btn" id="contentTaskSave" type="button">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Detail Modal -->
+  <div class="modal" id="contentDetailModal">
+    <div class="sheet" style="width:min(940px, 100%)">
+      <div class="m-head">
+        <strong>تفاصيل تاسك المحتوى</strong>
+        <button class="btn secondary xs" id="contentDetailClose" type="button">إغلاق</button>
+      </div>
+      <div class="m-body" id="contentDetailBody"></div>
+      <div class="m-foot" id="contentDetailFoot"></div>
+    </div>
+  </div>
+
 <div class="toast" id="toast">...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1705,6 +1833,9 @@
       addDoc, setDoc, updateDoc, deleteDoc,
       query, where, orderBy, onSnapshot, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+    import {
+      getStorage, ref as storageRef, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDXXDsJKnKb_0HynSTnP22QYc0yrUdx-cw",
@@ -1731,6 +1862,7 @@
     if(!getApps().length) initializeApp(firebaseConfig);
     const auth = getAuth();
     const db = getFirestore();
+    const storage = getStorage();
 
     // Secondary app instance for creating users without affecting current session
     const adminCreateApp = initializeApp(firebaseConfig, "adminCreate");
@@ -2032,7 +2164,7 @@ function initials(name){
     });
     if(localStorage.getItem("ws_sb_collapsed")==="1") appEl.classList.add("collapsed");
 
-    const views = { home: $("viewHome"), list: $("viewList"), board: $("viewBoard"), daily: $("viewDaily"), stock: $("viewStock"), departments: $("viewDepartments"), admin: $("viewAdmin") };
+    const views = { home: $("viewHome"), list: $("viewList"), board: $("viewBoard"), daily: $("viewDaily"), stock: $("viewStock"), departments: $("viewDepartments"), content: $("viewContent"), admin: $("viewAdmin") };
 
     // Last rendered rows for Excel export (stock tab)
     let __LAST_STOCK_ROWS = [];
@@ -2134,6 +2266,7 @@ function initials(name){
       try{ $("navHome").style.display = memberOnly ? "none" : ""; }catch(e){}
       try{ $("navDaily").style.display = memberOnly ? "none" : ""; }catch(e){}
       try{ $("navStock").style.display = memberOnly ? "none" : ""; }catch(e){}
+      try{ $("navContent").style.display = ""; }catch(e){}
       try{ $("navAdmin").style.display = (CURRENT_ROLE === "admin") ? "" : "none"; }catch(e){}
     }
 
@@ -2143,7 +2276,12 @@ function initials(name){
       try{ localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({view, ...extra})); }catch(e){}
     }
     async function restoreLastView(){
-      if(isMemberOnly()) return openList("agenda");
+      if(isMemberOnly()){
+        let st=null;
+        try{ st = JSON.parse(localStorage.getItem(LAST_VIEW_KEY)||"null"); }catch(e){ st=null; }
+        if(st && st.view==="content") return openContent();
+        return openContent();
+      }
       let state=null;
       try{ state = JSON.parse(localStorage.getItem(LAST_VIEW_KEY)||"null"); }catch(e){ state=null; }
       if(!state || !state.view){ openHome(); return; }
@@ -2153,6 +2291,7 @@ function initials(name){
       if(state.view==="daily") return openDaily();
       if(state.view==="stock") return openStock();
       if(state.view==="departments") return openDepartments();
+      if(state.view==="content") return openContent();
       if(state.view==="admin") return openAdmin();
       if(state.view==="board"){
         try{
@@ -2187,7 +2326,7 @@ let MODE = "home";
     });
 
     function setNavActive(which){
-      ["navHome","navAgendas","navCampaigns","navDepartments","navDaily","navStock","navAdmin"].forEach(id=>{
+      ["navHome","navAgendas","navCampaigns","navDepartments","navContent","navDaily","navStock","navAdmin"].forEach(id=>{
         $(id).classList.toggle("active", id===which);
       });
     }
@@ -2195,6 +2334,7 @@ let MODE = "home";
     $("navAgendas").addEventListener("click", ()=> openList("agenda"));
     $("navCampaigns").addEventListener("click", ()=> openList("campaign"));
     $("navDepartments").addEventListener("click", ()=> openDepartments());
+    $("navContent").addEventListener("click", ()=> openContent());
 
     $("navDaily").addEventListener("click", ()=> openDaily());
 
@@ -2954,6 +3094,388 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         }catch(e){ console.error(e); toast("⚠️ فشل حفظ مهمة القسم"); }
         finally{ $("departmentTaskSave").disabled = false; }
       });
+    }catch(_e){}
+
+
+    // ===== Content Tab (isolated from all other tabs) =====
+    let CONTENT_TASKS = [];
+    let CONTENT_CURRENT = null;
+    let CONTENT_MODE = "create";
+    let unsubContent = null;
+
+    function isAdminRole(){ return CURRENT_ROLE === "admin" || isAdminEmail(CURRENT_USER?.email || ""); }
+    function contentUserName(uid){
+      const u = USERS.find(x=> String(x.uid||"") === String(uid||""));
+      return u?.name || u?.email || "—";
+    }
+    function contentCanFinish(t){
+      const uid = CURRENT_USER?.uid || "";
+      return !!uid && (String(t.primaryUid||"") === uid || String(t.partnerUid||"") === uid);
+    }
+    function contentIsDone(t){ return String(t.status||"") === "done" || !!t.doneAt; }
+    function contentIsLate(t){
+      const due = String(t.dueDate || "").trim();
+      if(!due) return false;
+      if(contentIsDone(t)) return !!t.late;
+      return due < todayYmd();
+    }
+    function contentCanSee(t){
+      if(isAdminRole()) return true;
+      const uid = CURRENT_USER?.uid || "";
+      return String(t.primaryUid||"") === uid || String(t.partnerUid||"") === uid;
+    }
+    function contentFillUsers(selectEl, selected="", emptyText="— اختر —"){
+      if(!selectEl) return;
+      selectEl.innerHTML = `<option value="">${escapeHtml(emptyText)}</option>`;
+      USERS.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","ar")).forEach(u=>{
+        const opt = document.createElement("option");
+        opt.value = u.uid;
+        opt.textContent = u.name + (u.role ? ` (${u.role})` : "");
+        selectEl.appendChild(opt);
+      });
+      selectEl.value = String(selected||"");
+    }
+    function contentFillDepartments(selectEl, selected="", includeAll=false){
+      if(!selectEl) return;
+      const names = getDepartmentNames ? getDepartmentNames() : Object.keys(DEPARTMENT_DEFAULTS || {});
+      selectEl.innerHTML = includeAll ? `<option value="">كل الأقسام</option>` : `<option value="">— اختر القسم —</option>`;
+      names.forEach(d=>{
+        const opt = document.createElement("option");
+        opt.value = d; opt.textContent = d; selectEl.appendChild(opt);
+      });
+      selectEl.value = String(selected||"");
+    }
+    function normalizeContentFiles(taskOrFiles){
+      const source = Array.isArray(taskOrFiles)
+        ? taskOrFiles
+        : [
+            ...(Array.isArray(taskOrFiles?.files) ? taskOrFiles.files : []),
+            ...(Array.isArray(taskOrFiles?.attachments) ? taskOrFiles.attachments : [])
+          ];
+      const seen = new Set();
+      return source.filter(f=>{
+        const key = String((f && (f.url || f.dataUrl || f.path || f.name)) || "");
+        if(!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    function contentFilesHtml(files){
+      const arr = normalizeContentFiles(files);
+      if(!arr.length) return `<span class="muted">—</span>`;
+      return arr.map((f,i)=>{
+        const href = f.url || f.dataUrl || '#';
+        const name = f.name || ('ملف '+(i+1));
+        return `<a class="content-file-link" href="${escapeAttr(href)}" target="_blank" rel="noopener">📎 ${escapeHtml(name)}</a>`;
+      }).join("");
+    }
+    function contentStatusHtml(t){
+      if(contentIsDone(t)){
+        return `<span class="content-status ${t.late?'late':'done'}">${t.late?'⚠️ تم متأخر':'✅ تم الانتهاء'}</span>`;
+      }
+      if(contentIsLate(t)) return `<span class="content-status late">⚠️ متأخر</span>`;
+      return `<span class="content-status">⏳ جاري</span>`;
+    }
+    function contentReviewHtml(t){
+      return String(t.reviewed||false)==='true' || t.reviewed===true ? '✅' : '❌';
+    }
+    function contentFilteredTasks(){
+      const status = String($("contentFilterStatus")?.value || "active");
+      const dept = String($("contentFilterDept")?.value || "");
+      const q = normalizeArabicText($("contentSearch")?.value || "").toLowerCase();
+      return CONTENT_TASKS.filter(contentCanSee).filter(t=>{
+        if(dept && String(t.dept||"") !== dept) return false;
+        if(status === "active" && contentIsDone(t)) return false;
+        if(status === "done" && !contentIsDone(t)) return false;
+        if(status === "late" && !contentIsLate(t)) return false;
+        if(q){
+          const hay = normalizeArabicText([t.required, t.dept, t.primaryName, t.partnerName].join(" ")).toLowerCase();
+          if(!hay.includes(q)) return false;
+        }
+        return true;
+      }).sort((a,b)=>{
+        const da = String(a.dueDate||"9999-99-99");
+        const db = String(b.dueDate||"9999-99-99");
+        if(da!==db) return da.localeCompare(db);
+        return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
+      });
+    }
+    function renderContent(){
+      const table = $("contentTable"), wrap = $("contentTableWrap"), empty = $("contentEmpty");
+      if(!table || !wrap || !empty) return;
+      contentFillDepartments($("contentFilterDept"), $("contentFilterDept")?.value || "", true);
+      const addBtn = $("btnContentTaskAdd");
+      if(addBtn) addBtn.style.display = isAdminRole() ? "" : "none";
+      const rows = contentFilteredTasks();
+      if(!rows.length){
+        empty.style.display = ""; wrap.style.display = "none"; table.innerHTML = ""; return;
+      }
+      empty.style.display = "none"; wrap.style.display = "";
+      table.innerHTML = `
+        <thead><tr>
+          <th style="width:150px">القسم</th>
+          <th>المطلوب</th>
+          <th style="width:160px">المسؤول الأساسي</th>
+          <th style="width:160px">مشارك التنفيذ</th>
+          <th style="width:120px">تاريخ الطلب</th>
+          <th style="width:120px">تاريخ التسليم</th>
+          <th style="width:120px">الحالة</th>
+          <th style="width:90px">المراجعة</th>
+          <th style="width:160px">إجراءات</th>
+        </tr></thead>
+        <tbody>${rows.map(t=>`
+          <tr data-content-id="${escapeAttr(t.id)}">
+            <td><b>${escapeHtml(t.dept || '—')}</b></td>
+            <td><div class="content-card-title">${escapeHtml(String(t.required||'بدون مطلوب').split('\\n')[0])}</div><div class="content-card-text">${escapeHtml(t.required||'')}</div></td>
+            <td>${escapeHtml(t.primaryName || contentUserName(t.primaryUid))}</td>
+            <td>${escapeHtml(t.partnerName || (t.partnerUid ? contentUserName(t.partnerUid) : '—'))}</td>
+            <td>${escapeHtml(t.requestDate || '—')}</td>
+            <td>${escapeHtml(t.dueDate || '—')}</td>
+            <td>${contentStatusHtml(t)}</td>
+            <td style="font-weight:900;text-align:center">${contentReviewHtml(t)}</td>
+            <td>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start">
+                <button class="btn secondary sm" data-content-open="${escapeAttr(t.id)}" type="button">فتح</button>
+                ${isAdminRole() ? `<button class="btn ghost sm" data-content-edit="${escapeAttr(t.id)}" type="button">تعديل</button><button class="btn danger sm" data-content-delete="${escapeAttr(t.id)}" type="button">حذف</button>` : ``}
+              </div>
+            </td>
+          </tr>`).join('')}</tbody>`;
+      table.querySelectorAll('[data-content-open]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.getAttribute('data-content-open');
+          const t = CONTENT_TASKS.find(x=>x.id===id);
+          if(t) openContentDetail(t);
+        });
+      });
+      table.querySelectorAll('[data-content-edit]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.getAttribute('data-content-edit');
+          const t = CONTENT_TASKS.find(x=>x.id===id);
+          if(t) openContentTaskModal('edit', t);
+        });
+      });
+      table.querySelectorAll('[data-content-delete]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.getAttribute('data-content-delete');
+          const t = CONTENT_TASKS.find(x=>x.id===id);
+          if(t) await deleteContentTask(t);
+        });
+      });
+    }
+    function listenContent(){
+      if(unsubContent){unsubContent();unsubContent=null;}
+      unsubContent = onSnapshot(collection(db,"content_tasks"), (snap)=>{
+        const items=[];
+        snap.forEach(d=>{
+          const x = d.data() || {};
+          if(x.active === false || x.deleted === true) return;
+          items.push({ id:d.id, ...x });
+        });
+        CONTENT_TASKS = items;
+        renderContent();
+      }, (err)=>{ console.error(err); toast("⚠️ فشل تحميل تاسكات المحتوى"); CONTENT_TASKS=[]; renderContent(); });
+    }
+    function openContent(){
+      MODE="content"; LIST_TYPE=null; CURRENT_WORKSPACE=null;
+      saveLastView("content");
+      if(unsubWorkspaces){unsubWorkspaces();unsubWorkspaces=null;}
+      if(unsubTasks){unsubTasks();unsubTasks=null;}
+      if(unsubDaily){unsubDaily();unsubDaily=null;}
+      if(unsubDailyNotes){unsubDailyNotes();unsubDailyNotes=null;}
+      if(unsubDepartments){unsubDepartments();unsubDepartments=null;}
+      setNavActive("navContent");
+      $("pageTitle").textContent = "المحتوى";
+      $("pageDesc").textContent  = "تاسكات المحتوى: القسم، المسؤول الأساسي، مشارك التنفيذ، تاريخ الطلب والتسليم، المراجعة والملفات.";
+      $("btnBack").style.display="none";
+      $("btnCreateAgenda").style.display="none";
+      $("btnCreateCampaign").style.display="none";
+      showView("content");
+      contentFillDepartments($("contentFilterDept"), $("contentFilterDept")?.value || "", true);
+      listenContent();
+    }
+    function openContentTaskModal(mode="create", task=null){
+      if(!isAdminRole()) return toast("غير مسموح — الإضافة والتعديل للمدير فقط");
+      CONTENT_MODE = mode; CONTENT_CURRENT = task || null;
+      $("contentTaskModalTitle").textContent = mode === "edit" ? "تعديل تاسك محتوى" : "إضافة تاسك محتوى";
+      contentFillDepartments($("contentTaskDept"), task?.dept || "", false);
+      contentFillUsers($("contentTaskPrimary"), task?.primaryUid || "", "— اختر المسؤول —");
+      contentFillUsers($("contentTaskPartner"), task?.partnerUid || "", "— بدون مشارك —");
+      $("contentTaskRequestDate").value = task?.requestDate || todayYmd();
+      $("contentTaskDueDate").value = task?.dueDate || "";
+      $("contentTaskRequired").value = task?.required || "";
+      $("contentTaskReviewed").value = (task?.reviewed === true || String(task?.reviewed)==='true') ? "true" : "false";
+      $("contentTaskReviewed").disabled = !isAdminRole();
+      $("contentTaskFiles").value = "";
+      $("contentTaskExistingFiles").innerHTML = contentFilesHtml(task || []);
+      $("contentTaskDelete").style.display = mode === "edit" ? "" : "none";
+      $("contentTaskModal").classList.add("show");
+    }
+    function closeContentTaskModal(){
+      $("contentTaskModal")?.classList.remove("show");
+      CONTENT_CURRENT = null; CONTENT_MODE = "create";
+    }
+    async function uploadContentFiles(taskId, files){
+      const out=[];
+      const arr = Array.from(files || []);
+      for(const f of arr){
+        const safe = String(f.name || 'file').replace(/[\\/#?%*:|"<>]/g,'_');
+        const path = `content_tasks/${taskId}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safe}`;
+        const r = storageRef(storage, path);
+        await uploadBytes(r, f);
+        const url = await getDownloadURL(r);
+        out.push({ name:f.name, url, path, size:f.size || 0, type:f.type || "" });
+      }
+      return out;
+    }
+    async function saveContentTask(){
+      if(!isAdminRole()) return toast("غير مسموح");
+      const dept = String($("contentTaskDept").value || "").trim();
+      const primaryUid = String($("contentTaskPrimary").value || "").trim();
+      const partnerUid = String($("contentTaskPartner").value || "").trim();
+      const requestDate = String($("contentTaskRequestDate").value || "").trim();
+      const dueDate = String($("contentTaskDueDate").value || "").trim();
+      const required = String($("contentTaskRequired").value || "").trim();
+      const reviewed = String($("contentTaskReviewed").value || "false") === "true";
+      if(!dept) return toast("اختر القسم");
+      if(!primaryUid) return toast("اختر المسؤول الأساسي");
+      if(!requestDate) return toast("حدد تاريخ الطلب");
+      if(!dueDate) return toast("حدد تاريخ التسليم");
+      if(!required) return toast("اكتب المطلوب");
+      $("contentTaskSave").disabled = true;
+      try{
+        const primary = USERS.find(x=>x.uid===primaryUid) || {};
+        const partner = USERS.find(x=>x.uid===partnerUid) || {};
+        const payload = {
+          dept, primaryUid, primaryName: primary.name || primary.email || "",
+          partnerUid: partnerUid || null, partnerName: partnerUid ? (partner.name || partner.email || "") : null,
+          participantUids: partnerUid ? [primaryUid, partnerUid] : [primaryUid],
+          requestDate, dueDate, required, reviewed,
+          status: CONTENT_MODE === "edit" ? (CONTENT_CURRENT?.status || "open") : "open",
+          active: true, deleted: false,
+          updatedAt: serverTimestamp(), updatedBy: CURRENT_USER?.uid || null
+        };
+        let taskId = CONTENT_CURRENT?.id || null;
+        if(CONTENT_MODE === "edit" && taskId){
+          await updateDoc(doc(db,"content_tasks", taskId), payload);
+        }else{
+          payload.createdAt = serverTimestamp(); payload.createdBy = CURRENT_USER?.uid || null;
+          const refDoc = await addDoc(collection(db,"content_tasks"), payload);
+          taskId = refDoc.id;
+        }
+        const pickedFiles = $("contentTaskFiles")?.files;
+        let fileWarn = false;
+        if(pickedFiles && pickedFiles.length){
+          try{
+            const uploaded = await uploadContentFiles(taskId, pickedFiles);
+            const oldFiles = normalizeContentFiles(CONTENT_CURRENT || {});
+            await updateDoc(doc(db,"content_tasks", taskId), {
+              files: [...oldFiles, ...uploaded],
+              attachments: [...oldFiles, ...uploaded],
+              updatedAt: serverTimestamp()
+            });
+          }catch(fileErr){
+            console.error("content file upload failed", fileErr);
+            fileWarn = true;
+          }
+        }
+        toast(fileWarn ? "✅ تم حفظ التاسك — لكن فشل رفع بعض الملفات" : (CONTENT_MODE === "edit" ? "✅ تم تعديل تاسك المحتوى" : "✅ تم إضافة تاسك المحتوى"));
+        closeContentTaskModal();
+        if(MODE === "content") setTimeout(renderContent, 50);
+      }catch(e){ console.error(e); toast("⚠️ فشل حفظ تاسك المحتوى"); }
+      finally{ $("contentTaskSave").disabled = false; }
+    }
+    function openContentDetail(t){
+      CONTENT_CURRENT = t;
+      const canFinish = contentCanFinish(t) && !contentIsDone(t);
+      const canEdit = isAdminRole();
+      const body = $("contentDetailBody"), foot = $("contentDetailFoot");
+      body.innerHTML = `
+        <div class="grid2">
+          <div><label>القسم</label><input readonly value="${escapeAttr(t.dept||'—')}" /></div>
+          <div><label>الحالة</label><div style="padding-top:8px">${contentStatusHtml(t)}</div></div>
+        </div>
+        <div class="grid2">
+          <div><label>المسؤول الأساسي</label><input readonly value="${escapeAttr(t.primaryName || contentUserName(t.primaryUid))}" /></div>
+          <div><label>مشارك في التنفيذ</label><input readonly value="${escapeAttr(t.partnerName || (t.partnerUid ? contentUserName(t.partnerUid) : '—'))}" /></div>
+        </div>
+        <div class="grid2">
+          <div><label>تاريخ الطلب</label><input readonly value="${escapeAttr(t.requestDate||'—')}" /></div>
+          <div><label>تاريخ التسليم</label><input readonly value="${escapeAttr(t.dueDate||'—')}" /></div>
+        </div>
+        <div class="content-check-row">
+          <b>تم المراجعة:</b> <span style="font-weight:1000;font-size:18px">${contentReviewHtml(t)}</span>
+          ${t.reviewedAt ? `<span class="muted">آخر مراجعة محفوظة</span>` : ``}
+        </div>
+        <div><label>المطلوب</label><div class="content-detail-box">${escapeHtml(t.required||'')}</div></div>
+        <div><label>الملفات المرفقة</label><div class="content-files">${contentFilesHtml(t)}</div></div>
+        ${t.doneAt ? `<div class="hint" style="color:var(--muted)">تم الإنهاء بواسطة: ${escapeHtml(t.doneByName || contentUserName(t.doneByUid))} ${t.late ? '— تم احتسابه متأخر وتطبيق الخصم' : ''}</div>` : ``}
+      `;
+      foot.innerHTML = `
+        ${canEdit ? `<button class="btn secondary" id="contentDetailEdit" type="button">تعديل</button>` : ``}
+        ${canEdit ? `<button class="btn danger" id="contentDetailDelete" type="button">حذف</button>` : ``}
+        ${canEdit ? `<button class="btn ${t.reviewed ? 'secondary' : ''}" id="contentDetailReview" type="button">${t.reviewed ? '❌ إلغاء المراجعة' : '✅ تم المراجعة'}</button>` : ``}
+        ${canFinish ? `<button class="btn" id="contentDetailDone" type="button">تم الانتهاء</button>` : ``}
+        <button class="btn secondary" id="contentDetailOk" type="button">تمام</button>
+      `;
+      $("contentDetailModal").classList.add("show");
+      $("contentDetailOk")?.addEventListener("click", closeContentDetail);
+      $("contentDetailEdit")?.addEventListener("click", ()=>{ closeContentDetail(); openContentTaskModal("edit", t); });
+      $("contentDetailDelete")?.addEventListener("click", async ()=>{ await deleteContentTask(t); closeContentDetail(); });
+      $("contentDetailReview")?.addEventListener("click", async ()=>{
+        if(!isAdminRole()) return toast("المراجعة للمدير فقط");
+        try{
+          await updateDoc(doc(db,"content_tasks", t.id), { reviewed: !t.reviewed, reviewedAt: serverTimestamp(), reviewedBy: CURRENT_USER?.uid || null, updatedAt: serverTimestamp() });
+          toast("✅ تم تحديث المراجعة");
+          closeContentDetail();
+        }catch(e){ console.error(e); toast("⚠️ فشل تحديث المراجعة"); }
+      });
+      $("contentDetailDone")?.addEventListener("click", async ()=>{
+        if(!contentCanFinish(t)) return toast("التاسك لا يُغلق إلا بواسطة المسؤول الأساسي أو مشارك التنفيذ");
+        const late = String(t.dueDate||"") && todayYmd() > String(t.dueDate||"");
+        try{
+          await updateDoc(doc(db,"content_tasks", t.id), {
+            status:"done", doneAt: serverTimestamp(), doneByUid: CURRENT_USER?.uid || null, doneByName: contentUserName(CURRENT_USER?.uid || ""),
+            late: !!late, penaltyApplied: !!late, updatedAt: serverTimestamp()
+          });
+          toast(late ? "✅ تم الانتهاء — التاسك متأخر وتم تطبيق الخصم" : "✅ تم الانتهاء");
+          closeContentDetail();
+        }catch(e){ console.error(e); toast("⚠️ فشل إنهاء التاسك"); }
+      });
+    }
+    async function deleteContentTask(task){
+      if(!isAdminRole() || !task?.id) return toast("غير مسموح");
+      const ok = await openDepartmentActionModal({
+        title: "حذف تاسك المحتوى",
+        message: "تأكيد حذف تاسك المحتوى؟",
+        okText: "حذف",
+        danger: true
+      });
+      if(ok !== true) return;
+      try{
+        await updateDoc(doc(db,"content_tasks", task.id), {
+          active:false, deleted:true, deletedAt: serverTimestamp(), deletedBy: CURRENT_USER?.uid || null, updatedAt: serverTimestamp()
+        });
+        toast("✅ تم حذف تاسك المحتوى");
+        closeContentTaskModal();
+      }catch(e){ console.error(e); toast("⚠️ فشل حذف تاسك المحتوى"); }
+    }
+    function closeContentDetail(){ $("contentDetailModal")?.classList.remove("show"); CONTENT_CURRENT=null; }
+    try{
+      $("btnContentTaskAdd")?.addEventListener("click", ()=> openContentTaskModal("create"));
+      $("btnContentRefresh")?.addEventListener("click", ()=>{ if(MODE==="content") listenContent(); });
+      $("contentFilterStatus")?.addEventListener("change", renderContent);
+      $("contentFilterDept")?.addEventListener("change", renderContent);
+      $("contentSearch")?.addEventListener("input", renderContent);
+      $("contentTaskClose")?.addEventListener("click", closeContentTaskModal);
+      $("contentTaskCancel")?.addEventListener("click", closeContentTaskModal);
+      $("contentTaskModal")?.addEventListener("click", (e)=>{ if(e.target===$("contentTaskModal")) closeContentTaskModal(); });
+      $("contentTaskSave")?.addEventListener("click", saveContentTask);
+      $("contentTaskDelete")?.addEventListener("click", async ()=>{
+        if(!isAdminRole() || !CONTENT_CURRENT?.id) return;
+        await deleteContentTask(CONTENT_CURRENT);
+      });
+      $("contentDetailClose")?.addEventListener("click", closeContentDetail);
+      $("contentDetailModal")?.addEventListener("click", (e)=>{ if(e.target===$("contentDetailModal")) closeContentDetail(); });
     }catch(_e){}
 
 
