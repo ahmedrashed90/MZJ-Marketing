@@ -11,6 +11,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -504,6 +505,15 @@
       display:none;z-index:2000;font-size:13px;
     }
     .toast.show{display:block}
+    .toast.penalty{
+      background:#7f1d1d;
+      color:#fff;
+      font-weight:900;
+      border:2px solid #fecaca;
+      box-shadow:0 18px 55px rgba(127,29,29,.35);
+      padding:14px 16px;
+      font-size:14px;
+    }
 
     .kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
     .kpi{
@@ -1933,10 +1943,17 @@
       authErr.classList.remove("show");
     }
 
-    function toast(msg){
+    let toastTimer = null;
+    function toast(msg, duration=2200, variant=""){
       toastEl.textContent = msg;
+      toastEl.classList.remove("penalty");
+      if(variant) toastEl.classList.add(variant);
       toastEl.classList.add("show");
-      setTimeout(()=> toastEl.classList.remove("show"), 2200);
+      if(toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=> {
+        toastEl.classList.remove("show");
+        toastEl.classList.remove("penalty");
+      }, duration);
     }
     function escapeHtml(s){
       return String(s??"")
@@ -2178,7 +2195,8 @@ function initSpecKeySource(){
       return s.includes('ريل مواصفات');
     }
     function isTaskLate(task){
-      const due = String(task?.due || '').trim();
+      if(task?.late === true || String(task?.late || "").toLowerCase() === "true") return true;
+      const due = String(task?.due || task?.dueDate || '').trim();
       if(!due || isTaskDone(task)) return false;
       return due < todayYmd();
     }
@@ -3594,7 +3612,11 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             status:"done", doneAt: serverTimestamp(), doneByUid: CURRENT_USER?.uid || null, doneByName: contentUserName(CURRENT_USER?.uid || ""),
             late: !!late, penaltyApplied: !!late, updatedAt: serverTimestamp()
           });
-          toast(late ? "✅ تم الانتهاء — التاسك متأخر وتم تطبيق الخصم" : "✅ تم الانتهاء");
+          toast(
+            late ? "⚠️ تم الانتهاء متأخر — تم تطبيق الخصم على المسؤول" : "✅ تم الانتهاء",
+            late ? 5000 : 2200,
+            late ? "penalty" : ""
+          );
           closeContentDetail();
         }catch(e){ console.error(e); toast("⚠️ فشل إنهاء التاسك"); }
       });
