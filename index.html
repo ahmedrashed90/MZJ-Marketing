@@ -14,6 +14,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -877,6 +878,9 @@
     .content-card-text{display:none}
     .content-files{display:flex;gap:8px;flex-wrap:wrap}
     .content-file-link{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#fff8ef;border:1px solid rgba(188,143,116,.30);color:var(--brown);font-size:12px;font-weight:800}
+    .drive-attach-box{border:1px dashed rgba(62,36,32,.18);border-radius:14px;padding:12px;background:#fffaf5;display:grid;gap:10px}
+    .drive-attach-box input[type=file]{background:#fff}
+    .drive-attach-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
     .content-detail-box{border:1px solid #efe5dd;border-radius:14px;padding:12px;background:#fff;line-height:1.8;white-space:pre-wrap}
     .content-check-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #efe5dd;border-radius:14px;padding:10px}
     .content-check-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--beige)}
@@ -1529,6 +1533,19 @@
           <label>الروابط</label>
           <div class="chips" id="dLinks"></div>
         </div>
+
+        <div id="dAttachmentsBlock">
+          <div class="divider"></div>
+          <label>المرفقات</label>
+          <div class="content-files" id="dAttachments"></div>
+          <div class="drive-attach-box" style="margin-top:10px">
+            <input id="dAttachmentFiles" type="file" multiple />
+            <div class="drive-attach-actions">
+              <button class="btn secondary sm" id="dAttachmentSave" type="button">رفع وحفظ المرفقات</button>
+            </div>
+            <div class="hint" style="color:var(--muted)">يتم رفع الملفات على Google Drive وحفظ الرابط داخل التاسك.</div>
+          </div>
+        </div>
       </div>
       <div class="m-foot">
         <button class="btn secondary" id="detailEdit" type="button">تعديل</button>
@@ -1899,6 +1916,9 @@
       appId: "1:1080687990992:web:4a496249bbf330fc37a6d5"
     };
 
+    // Google Drive upload endpoint (Google Apps Script Web App)
+    const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyE2LMLcIJX1XehQYfB7mBj-zg7YiJ23UVf1L9X3_IwWYPBbMMEJYKCvbwiq2m5OJQQ/exec";
+
   // ===== Unique Spec Key Source (Agenda DB) =====
   // يتم استخدام هذه القاعدة فقط لجلب خيارات الـ Spec Key داخل مودال إنشاء التاسك (بدون إضافة صفحة جديدة).
   const agendaFirebaseConfig = {
@@ -1970,6 +1990,49 @@
         .replaceAll(">","&gt;")
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
+    }
+
+    function fileToBase64(file){
+      return new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          const raw = String(reader.result || "");
+          resolve(raw.includes(",") ? raw.split(",")[1] : raw);
+        };
+        reader.onerror = ()=> reject(reader.error || new Error("file-read-failed"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadFileToDrive(file, taskId, area="tasks"){
+      if(!file) throw new Error("missing-file");
+      if(!DRIVE_UPLOAD_URL) throw new Error("missing-drive-upload-url");
+      const base64 = await fileToBase64(file);
+      const res = await fetch(DRIVE_UPLOAD_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          taskId: String(area || "tasks") + "_" + String(taskId || "general"),
+          name: file.name || "file",
+          type: file.type || "application/octet-stream",
+          file: base64
+        })
+      });
+      const data = await res.json();
+      if(!data || data.success !== true) throw new Error(data?.error || "drive-upload-failed");
+      return {
+        name: data.name || file.name || "file",
+        title: data.name || file.name || "file",
+        url: data.url || "",
+        fileId: data.fileId || null,
+        folderUrl: data.folderUrl || null,
+        size: file.size || 0,
+        type: file.type || "",
+        kind: "drive",
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: CURRENT_USER?.uid || null,
+        uploadedByName: CURRENT_USER?.email || null
+      };
     }
     
     
@@ -3451,12 +3514,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const out=[];
       const arr = Array.from(files || []);
       for(const f of arr){
-        const safe = String(f.name || 'file').replace(/[\/#?%*:|"<>]/g,'_');
-        const path = `content_tasks/${taskId}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safe}`;
-        const r = storageRef(storage, path);
-        await uploadBytes(r, f);
-        const url = await getDownloadURL(r);
-        out.push({ name:f.name, url, path, size:f.size || 0, type:f.type || "", kind:"file" });
+        const uploaded = await uploadFileToDrive(f, taskId, "content_tasks");
+        out.push(uploaded);
       }
       return out;
     }
@@ -3581,7 +3640,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             <div><input id="contentDetailLinkTitle" placeholder="عنوان اللينك — مثال: ملف درايف" /></div>
             <div><input id="contentDetailLinkUrl" placeholder="https://..." /></div>
           </div>
-          <div class="hint" style="color:var(--muted)">المسؤول الأساسي أو مشارك التنفيذ يقدر يضيف ملفات أو لينكات فقط بدون تعديل بيانات التاسك.</div>
+          <div class="hint" style="color:var(--muted)">يتم رفع الملفات على Google Drive وحفظ الرابط داخل التاسك، والمسؤول يقدر يضيف ملفات أو لينكات فقط بدون تعديل بيانات التاسك.</div>
         </div>` : ``}
         ${t.doneAt ? `<div class="hint" style="color:var(--muted)">تم الإنهاء بواسطة: ${escapeHtml(t.doneByName || contentUserName(t.doneByUid))} ${t.late ? '— تم احتسابه متأخر وتطبيق الخصم' : ''}</div>` : ``}
       `;
@@ -6006,6 +6065,74 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
     // Detail
     const detailModal = $("detailModal");
+
+    function normalizeTaskAttachments(taskOrFiles){
+      const source = Array.isArray(taskOrFiles)
+        ? taskOrFiles
+        : [
+            ...(Array.isArray(taskOrFiles?.attachments) ? taskOrFiles.attachments : []),
+            ...(Array.isArray(taskOrFiles?.files) ? taskOrFiles.files : [])
+          ];
+      const seen = new Set();
+      return source.filter(f=>{
+        const key = String((f && (f.url || f.fileId || f.name || f.title)) || "");
+        if(!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderTaskAttachments(task){
+      const box = $("dAttachments");
+      if(!box) return;
+      const arr = normalizeTaskAttachments(task || {});
+      box.innerHTML = arr.length ? arr.map((f,i)=>{
+        const href = f.url || "#";
+        const name = f.name || f.title || ("ملف " + (i+1));
+        return `<a class="content-file-link" href="${escapeAttr(href)}" target="_blank" rel="noopener">📎 ${escapeHtml(name)}</a>`;
+      }).join("") : `<span class="muted">لا توجد مرفقات.</span>`;
+    }
+
+    async function appendWorkspaceTaskAttachments(task, files){
+      if(!task?.id) throw new Error("missing-task-id");
+      const arr = Array.from(files || []);
+      if(!arr.length) return [];
+      const uploaded = [];
+      for(const f of arr){
+        uploaded.push(await uploadFileToDrive(f, task.id, "workspace_tasks"));
+      }
+      const merged = normalizeTaskAttachments([...normalizeTaskAttachments(task || {}), ...uploaded]);
+      await updateDoc(doc(db,"workspace_tasks", task.id), {
+        attachments: merged,
+        updatedAt: serverTimestamp(),
+        updatedBy: CURRENT_USER?.uid || null
+      });
+      CURRENT_TASK = { ...(CURRENT_TASK || task), attachments: merged };
+      return uploaded;
+    }
+
+    async function saveWorkspaceTaskAttachments(){
+      if(!CURRENT_TASK?.id) return toast("⚠️ لا يوجد تاسك محدد");
+      const input = $("dAttachmentFiles");
+      const files = input?.files;
+      if(!files || !files.length) return toast("اختار ملف الأول");
+      const btn = $("dAttachmentSave");
+      if(btn) btn.disabled = true;
+      try{
+        await appendWorkspaceTaskAttachments(CURRENT_TASK, files);
+        if(input) input.value = "";
+        renderTaskAttachments(CURRENT_TASK);
+        toast("✅ تم رفع المرفقات وحفظ الرابط");
+      }catch(e){
+        console.error(e);
+        toast("⚠️ فشل رفع المرفقات على Google Drive");
+      }finally{
+        if(btn) btn.disabled = false;
+      }
+    }
+
+    $("dAttachmentSave")?.addEventListener("click", saveWorkspaceTaskAttachments);
+
     function openTaskDetail(task){
       CURRENT_TASK = task;
 
@@ -6037,6 +6164,10 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       }else{
         linksBlock.style.display="none";
       }
+
+      renderTaskAttachments(task);
+      const attachInput = $("dAttachmentFiles");
+      if(attachInput) attachInput.value = "";
 
       $("detailModalTitle").textContent = task.title ? (`تفاصيل التاسك — ${task.title}`) : "تفاصيل التاسك";
       detailModal.classList.add("show");
