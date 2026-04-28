@@ -16,6 +16,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -2248,6 +2249,21 @@ function initSpecKeySource(){
       const day = String(d.getDate()).padStart(2,'0');
       return `${d.getFullYear()}-${m}-${day}`;
     }
+
+    function makeReadableTaskDocId(name, prefix="task"){
+      const raw = String(name || "task").trim() || "task";
+      let clean = raw
+        .replace(/[ً-ٰٟ]/g, "")
+        .replace(/[\/\?#\[\]{}%<>|"'`~^:;=+*,!@#$&()]/g, " ")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 90);
+      if(!clean) clean = "task";
+      const stamp = Date.now().toString(36);
+      const rnd = Math.random().toString(36).slice(2,6);
+      return `${prefix}-${clean}-${stamp}-${rnd}`;
+    }
     function monthNameFromDateValue(v){
       const s = String(v||'').trim();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
@@ -3688,8 +3704,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           await updateDoc(doc(db,"content_tasks", taskId), payload);
         }else{
           payload.createdAt = serverTimestamp(); payload.createdBy = CURRENT_USER?.uid || null;
-          const refDoc = await addDoc(collection(db,"content_tasks"), payload);
-          taskId = refDoc.id;
+          taskId = makeReadableTaskDocId(required, "content");
+          await setDoc(doc(db,"content_tasks", taskId), payload);
         }
         const pickedFiles = $("contentTaskFiles")?.files;
         let fileWarn = false;
@@ -4259,7 +4275,8 @@ function openDailyTaskModal(ctx){
       if(!DAILY_CTX || !title) return toast("اكتب عنوان المهمة");
       $("dailyTaskSave").disabled = true;
       try{
-        await addDoc(collection(db,"daily_tasks"), {
+        const dailyTaskId = makeReadableTaskDocId(title, "daily");
+        await setDoc(doc(db,"daily_tasks", dailyTaskId), {
           monthKey: DAILY_CTX.monthKey,
           year: Number(String(DAILY_CTX.monthKey).slice(0,4)),
           month: String(DAILY_CTX.monthKey).slice(5,7),
@@ -6156,7 +6173,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(TASK_MODE==="create"){
           payload.createdAt = serverTimestamp();
           payload.createdBy = CURRENT_USER?.uid || null;
-          await addDoc(collection(db,"workspace_tasks"), payload);
+          const workspaceTaskId = makeReadableTaskDocId(title, "task");
+          await setDoc(doc(db,"workspace_tasks", workspaceTaskId), payload);
           toast("✅ تم حفظ التاسك");
         }else{
           if(!CURRENT_TASK?.id) return toast("⚠️ لا يوجد ID للتعديل");
