@@ -15,6 +15,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -863,7 +864,7 @@
     /* ===== Content Tab (isolated) ===== */
     .content-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .content-toolbar select,.content-toolbar input{min-width:180px;height:42px}
-    .content-table{width:100%;border-collapse:separate;border-spacing:0 8px;min-width:1180px;table-layout:fixed}
+    .content-table{width:100%;border-collapse:separate;border-spacing:0 8px;min-width:1320px;table-layout:fixed}
     .content-table th{font-size:12px;color:var(--muted);text-align:right;padding:0 10px 6px;white-space:nowrap}
     .content-table td{padding:10px;background:#fff;border-top:1px solid #efe5dd;border-bottom:1px solid #efe5dd;vertical-align:middle;overflow:hidden}
     .content-table tbody tr{cursor:pointer;transition:.15s}
@@ -1829,15 +1830,12 @@
         </div>
         <div class="grid2">
           <div>
-            <label>مشارك في التنفيذ (اختياري)</label>
-            <select id="contentTaskPartner"><option value="">— بدون مشارك —</option></select>
+            <label>مشارك في التنفيذ 1 (اختياري)</label>
+            <select id="contentTaskPartner1"><option value="">— بدون مشارك —</option></select>
           </div>
           <div>
-            <label>حالة المراجعة</label>
-            <select id="contentTaskReviewed">
-              <option value="false">❌ لم يتم المراجعة</option>
-              <option value="true">✅ تم المراجعة</option>
-            </select>
+            <label>مشارك في التنفيذ 2 (اختياري)</label>
+            <select id="contentTaskPartner2"><option value="">— بدون مشارك —</option></select>
           </div>
         </div>
         <div class="grid2">
@@ -3251,13 +3249,35 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     function contentPrimaryUid(t){
       return String(t?.primaryUid || t?.mainAssigneeUid || t?.assigneeUid || "");
     }
+    function contentPartner1Uid(t){
+      return String(t?.partner1Uid || t?.partnerUid || t?.partnerAssigneeUid || "");
+    }
+    function contentPartner2Uid(t){
+      return String(t?.partner2Uid || t?.secondPartnerUid || "");
+    }
     function contentPartnerUid(t){
-      return String(t?.partnerUid || t?.partnerAssigneeUid || "");
+      return contentPartner1Uid(t);
+    }
+    function uniqueContentUids(arr){
+      return Array.from(new Set((arr||[]).map(x=>String(x||"").trim()).filter(Boolean)));
+    }
+    function contentParticipantUids(t){
+      const saved = Array.isArray(t?.participantUids) ? t.participantUids : [];
+      return uniqueContentUids([contentPrimaryUid(t), contentPartner1Uid(t), contentPartner2Uid(t), ...saved]);
+    }
+    function contentParticipantLabel(t, uid){
+      const sUid = String(uid||"");
+      if(sUid === contentPrimaryUid(t)) return "المسؤول الأساسي";
+      if(sUid === contentPartner1Uid(t)) return "مشارك التنفيذ 1";
+      if(sUid === contentPartner2Uid(t)) return "مشارك التنفيذ 2";
+      return "مشارك";
+    }
+    function contentParticipantNames(t){
+      return contentParticipantUids(t).map(uid=>({ uid, name: contentUserName(uid), role: contentParticipantLabel(t, uid) }));
     }
     function contentCanFinish(t){
       const uid = CURRENT_USER?.uid || "";
-      const participants = Array.isArray(t?.participantUids) ? t.participantUids.map(String) : [];
-      return !!uid && (contentPrimaryUid(t) === uid || contentPartnerUid(t) === uid || participants.includes(String(uid)));
+      return !!uid && contentParticipantUids(t).includes(String(uid));
     }
     function contentIsDone(t){ return String(t.status||"") === "done" || !!t.doneAt; }
     function contentIsLate(t){
@@ -3269,8 +3289,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
     function contentCanSee(t){
       if(isAdminRole()) return true;
       const uid = CURRENT_USER?.uid || "";
-      const participants = Array.isArray(t?.participantUids) ? t.participantUids.map(String) : [];
-      return contentPrimaryUid(t) === uid || contentPartnerUid(t) === uid || participants.includes(String(uid));
+      return !!uid && contentParticipantUids(t).includes(String(uid));
     }
     function contentFillUsers(selectEl, selected="", emptyText="— اختر —"){
       if(!selectEl) return;
@@ -3326,8 +3345,34 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(contentIsLate(t)) return `<span class="content-status late">⚠️ متأخر</span>`;
       return `<span class="content-status">⏳ جاري</span>`;
     }
+    function contentReviewedUids(t){
+      if(Array.isArray(t?.reviewedUids)) return uniqueContentUids(t.reviewedUids);
+      if(t?.reviewedBy && typeof t.reviewedBy === "object") return uniqueContentUids(Object.keys(t.reviewedBy));
+      return (String(t.reviewed||false)==='true' || t.reviewed===true) ? contentParticipantUids(t) : [];
+    }
     function contentReviewHtml(t){
-      return String(t.reviewed||false)==='true' || t.reviewed===true ? '✅' : '❌';
+      const participants = contentParticipantUids(t);
+      const reviewed = contentReviewedUids(t);
+      if(!participants.length) return '❌';
+      return reviewed.length >= participants.length ? '✅ الكل' : `${reviewed.length}/${participants.length}`;
+    }
+    function contentReviewRowsHtml(t){
+      const reviewed = new Set(contentReviewedUids(t));
+      const currentUid = String(CURRENT_USER?.uid || "");
+      const isAdmin = isAdminRole();
+      const rows = contentParticipantNames(t);
+      if(!rows.length) return `<div class="content-check-row"><span class="muted">لا يوجد مشاركين.</span></div>`;
+      return rows.map(p=>{
+        const done = reviewed.has(String(p.uid));
+        const canPress = !done && (String(p.uid) === currentUid || isAdmin);
+        return `<div class="content-check-row" style="justify-content:space-between">
+          <div style="display:grid;gap:3px">
+            <b>${escapeHtml(p.role)}: ${escapeHtml(p.name)}</b>
+            <span class="muted">${done ? '✅ تم المراجعة' : '❌ لم يتم المراجعة'}</span>
+          </div>
+          ${canPress ? `<button class="btn sm" data-content-review-uid="${escapeAttr(p.uid)}" type="button">تم المراجعة</button>` : ``}
+        </div>`;
+      }).join("");
     }
     function contentFilteredTasks(){
       const status = String($("contentFilterStatus")?.value || "active");
@@ -3339,7 +3384,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         if(status === "done" && !contentIsDone(t)) return false;
         if(status === "late" && !contentIsLate(t)) return false;
         if(q){
-          const hay = normalizeArabicText([t.required, t.dept, t.primaryName, t.partnerName].join(" ")).toLowerCase();
+          const hay = normalizeArabicText([t.required, t.dept, t.primaryName, t.partnerName, t.partner1Name, t.partner2Name, contentParticipantNames(t).map(x=>x.name).join(' ')].join(" ")).toLowerCase();
           if(!hay.includes(q)) return false;
         }
         return true;
@@ -3366,7 +3411,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           <th style="width:130px">القسم</th>
           <th style="width:430px">المطلوب</th>
           <th style="width:145px">المسؤول الأساسي</th>
-          <th style="width:145px">مشارك التنفيذ</th>
+          <th style="width:145px">مشارك التنفيذ 1</th>
+          <th style="width:145px">مشارك التنفيذ 2</th>
           <th style="width:115px">تاريخ الطلب</th>
           <th style="width:115px">تاريخ التسليم</th>
           <th style="width:115px">الحالة</th>
@@ -3378,7 +3424,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             <td><b>${escapeHtml(t.dept || '—')}</b></td>
             <td><div class="content-required-cell"><div class="content-card-title">${escapeHtml(String(t.required||'بدون مطلوب').replace(/\s+/g,' ').trim() || 'بدون مطلوب')}</div></div></td>
             <td>${escapeHtml(t.primaryName || contentUserName(contentPrimaryUid(t)))}</td>
-            <td>${escapeHtml(t.partnerName || (contentPartnerUid(t) ? contentUserName(contentPartnerUid(t)) : '—'))}</td>
+            <td>${escapeHtml(t.partner1Name || t.partnerName || (contentPartner1Uid(t) ? contentUserName(contentPartner1Uid(t)) : '—'))}</td>
+            <td>${escapeHtml(t.partner2Name || (contentPartner2Uid(t) ? contentUserName(contentPartner2Uid(t)) : '—'))}</td>
             <td>${escapeHtml(t.requestDate || '—')}</td>
             <td>${escapeHtml(t.dueDate || '—')}</td>
             <td>${contentStatusHtml(t)}</td>
@@ -3428,14 +3475,18 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       const list = Array.isArray(items) ? items : [];
       for(const t of list){
         if(!t?.id) continue;
-        const p = String(t.primaryUid || t.mainAssigneeUid || t.assigneeUid || "");
+        const p = contentPrimaryUid(t);
         const pr = USERS.find(x=>x.uid===p) || {};
-        const partner = String(t.partnerUid || t.partnerAssigneeUid || "");
-        const pa = USERS.find(x=>x.uid===partner) || {};
-        const needs = (p && (!t.mainAssigneeUid || !t.assigneeUid)) || (partner && !t.partnerAssigneeUid);
+        const partner1 = contentPartner1Uid(t);
+        const partner2 = contentPartner2Uid(t);
+        const pa1 = USERS.find(x=>x.uid===partner1) || {};
+        const pa2 = USERS.find(x=>x.uid===partner2) || {};
+        const participants = uniqueContentUids([p, partner1, partner2]);
+        const savedParticipants = Array.isArray(t.participantUids) ? uniqueContentUids(t.participantUids) : [];
+        const needs = (p && (!t.mainAssigneeUid || !t.assigneeUid)) || (partner1 && (!t.partner1Uid || !t.partnerAssigneeUid)) || (partner2 && !t.partner2Uid) || participants.join('|') !== savedParticipants.join('|');
         if(!needs) continue;
         try{
-          const patch = { updatedAt: serverTimestamp() };
+          const patch = { updatedAt: serverTimestamp(), participantUids: participants };
           if(p){
             patch.primaryUid = p;
             patch.mainAssigneeUid = p;
@@ -3444,13 +3495,18 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             patch.mainAssigneeName = patch.primaryName;
             patch.assigneeName = patch.primaryName;
           }
-          if(partner){
-            patch.partnerUid = partner;
-            patch.partnerAssigneeUid = partner;
-            patch.partnerName = t.partnerName || t.partnerAssigneeName || pa.name || pa.email || "";
-            patch.partnerAssigneeName = patch.partnerName;
+          if(partner1){
+            patch.partner1Uid = partner1;
+            patch.partnerUid = partner1;
+            patch.partnerAssigneeUid = partner1;
+            patch.partner1Name = t.partner1Name || t.partnerName || t.partnerAssigneeName || pa1.name || pa1.email || "";
+            patch.partnerName = patch.partner1Name;
+            patch.partnerAssigneeName = patch.partner1Name;
           }
-          patch.participantUids = partner ? [p, partner].filter(Boolean) : [p].filter(Boolean);
+          if(partner2){
+            patch.partner2Uid = partner2;
+            patch.partner2Name = t.partner2Name || pa2.name || pa2.email || "";
+          }
           await updateDoc(doc(db,"content_tasks", t.id), patch);
         }catch(e){ console.warn("content alias backfill failed", t.id, e); }
       }
@@ -3493,12 +3549,12 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       $("contentTaskModalTitle").textContent = mode === "edit" ? "تعديل تاسك محتوى" : "إضافة تاسك محتوى";
       contentFillDepartments($("contentTaskDept"), task?.dept || "", false);
       contentFillUsers($("contentTaskPrimary"), contentPrimaryUid(task || {}) || "", "— اختر المسؤول —");
-      contentFillUsers($("contentTaskPartner"), contentPartnerUid(task || {}) || "", "— بدون مشارك —");
+      contentFillUsers($("contentTaskPartner1"), contentPartner1Uid(task || {}) || "", "— بدون مشارك —");
+      contentFillUsers($("contentTaskPartner2"), contentPartner2Uid(task || {}) || "", "— بدون مشارك —");
       $("contentTaskRequestDate").value = task?.requestDate || todayYmd();
       $("contentTaskDueDate").value = task?.dueDate || "";
       $("contentTaskRequired").value = task?.required || "";
-      $("contentTaskReviewed").value = (task?.reviewed === true || String(task?.reviewed)==='true') ? "true" : "false";
-      $("contentTaskReviewed").disabled = !isAdminRole();
+      // المراجعة أصبحت منفصلة لكل مشارك داخل تفاصيل التاسك.
       $("contentTaskFiles").value = "";
       $("contentTaskLinkTitle").value = "";
       $("contentTaskLinkUrl").value = "";
@@ -3550,21 +3606,24 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(!isAdminRole()) return toast("غير مسموح");
       const dept = String($("contentTaskDept").value || "").trim();
       const primaryUid = String($("contentTaskPrimary").value || "").trim();
-      const partnerUid = String($("contentTaskPartner").value || "").trim();
+      const partner1Uid = String($("contentTaskPartner1").value || "").trim();
+      const partner2Uid = String($("contentTaskPartner2").value || "").trim();
       const requestDate = String($("contentTaskRequestDate").value || "").trim();
       const dueDate = String($("contentTaskDueDate").value || "").trim();
       const required = String($("contentTaskRequired").value || "").trim();
-      const reviewed = String($("contentTaskReviewed").value || "false") === "true";
       const linkItem = buildContentLink($("contentTaskLinkTitle")?.value || "", $("contentTaskLinkUrl")?.value || "");
       if(!dept) return toast("اختر القسم");
       if(!primaryUid) return toast("اختر المسؤول الأساسي");
+      const participantUids = uniqueContentUids([primaryUid, partner1Uid, partner2Uid]);
+      if(participantUids.length !== [primaryUid, partner1Uid, partner2Uid].filter(Boolean).length) return toast("اختار يوزرات مختلفة لكل مشارك");
       if(!requestDate) return toast("حدد تاريخ الطلب");
       if(!dueDate) return toast("حدد تاريخ التسليم");
       if(!required) return toast("اكتب المطلوب");
       $("contentTaskSave").disabled = true;
       try{
         const primary = USERS.find(x=>x.uid===primaryUid) || {};
-        const partner = USERS.find(x=>x.uid===partnerUid) || {};
+        const partner1 = USERS.find(x=>x.uid===partner1Uid) || {};
+        const partner2 = USERS.find(x=>x.uid===partner2Uid) || {};
         const payload = {
           dept,
           primaryUid,
@@ -3573,12 +3632,16 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           primaryName: primary.name || primary.email || "",
           mainAssigneeName: primary.name || primary.email || "",
           assigneeName: primary.name || primary.email || "",
-          partnerUid: partnerUid || null,
-          partnerAssigneeUid: partnerUid || null,
-          partnerName: partnerUid ? (partner.name || partner.email || "") : null,
-          partnerAssigneeName: partnerUid ? (partner.name || partner.email || "") : null,
-          participantUids: partnerUid ? [primaryUid, partnerUid] : [primaryUid],
-          requestDate, dueDate, required, reviewed,
+          partner1Uid: partner1Uid || null,
+          partnerUid: partner1Uid || null,
+          partnerAssigneeUid: partner1Uid || null,
+          partner1Name: partner1Uid ? (partner1.name || partner1.email || "") : null,
+          partnerName: partner1Uid ? (partner1.name || partner1.email || "") : null,
+          partnerAssigneeName: partner1Uid ? (partner1.name || partner1.email || "") : null,
+          partner2Uid: partner2Uid || null,
+          partner2Name: partner2Uid ? (partner2.name || partner2.email || "") : null,
+          participantUids,
+          requestDate, dueDate, required,
           status: CONTENT_MODE === "edit" ? (CONTENT_CURRENT?.status || "open") : "open",
           active: true, deleted: false,
           updatedAt: serverTimestamp(), updatedBy: CURRENT_USER?.uid || null
@@ -3620,15 +3683,19 @@ let unsubKpiWs=null, unsubKpiTasks=null;
         </div>
         <div class="grid2">
           <div><label>المسؤول الأساسي</label><input readonly value="${escapeAttr(t.primaryName || t.mainAssigneeName || contentUserName(contentPrimaryUid(t)))}" /></div>
-          <div><label>مشارك في التنفيذ</label><input readonly value="${escapeAttr(t.partnerName || t.partnerAssigneeName || (contentPartnerUid(t) ? contentUserName(contentPartnerUid(t)) : '—'))}" /></div>
+          <div><label>مشارك في التنفيذ 1</label><input readonly value="${escapeAttr(t.partner1Name || t.partnerName || t.partnerAssigneeName || (contentPartner1Uid(t) ? contentUserName(contentPartner1Uid(t)) : '—'))}" /></div>
+        </div>
+        <div class="grid2">
+          <div><label>مشارك في التنفيذ 2</label><input readonly value="${escapeAttr(t.partner2Name || (contentPartner2Uid(t) ? contentUserName(contentPartner2Uid(t)) : '—'))}" /></div>
+          <div><label>ملخص المراجعة</label><input readonly value="${escapeAttr(contentReviewHtml(t))}" /></div>
         </div>
         <div class="grid2">
           <div><label>تاريخ الطلب</label><input readonly value="${escapeAttr(t.requestDate||'—')}" /></div>
           <div><label>تاريخ التسليم</label><input readonly value="${escapeAttr(t.dueDate||'—')}" /></div>
         </div>
-        <div class="content-check-row">
-          <b>تم المراجعة:</b> <span style="font-weight:1000;font-size:18px">${contentReviewHtml(t)}</span>
-          ${t.reviewedAt ? `<span class="muted">آخر مراجعة محفوظة</span>` : ``}
+        <div>
+          <label>مراجعة المشاركين</label>
+          <div style="display:grid;gap:8px">${contentReviewRowsHtml(t)}</div>
         </div>
         <div><label>المطلوب</label><div class="content-detail-box">${escapeHtml(t.required||'')}</div></div>
         <div><label>الملفات واللينكات المرفقة</label><div class="content-files">${contentFilesHtml(t)}</div></div>
@@ -3647,7 +3714,6 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       foot.innerHTML = `
         ${canEdit ? `<button class="btn secondary" id="contentDetailEdit" type="button">تعديل</button>` : ``}
         ${canEdit ? `<button class="btn danger" id="contentDetailDelete" type="button">حذف</button>` : ``}
-        ${canEdit ? `<button class="btn ${t.reviewed ? 'secondary' : ''}" id="contentDetailReview" type="button">${t.reviewed ? '❌ إلغاء المراجعة' : '✅ تم المراجعة'}</button>` : ``}
         ${canAttach ? `<button class="btn secondary" id="contentDetailAttachSave" type="button">حفظ الملفات / اللينك</button>` : ``}
         ${canFinish ? `<button class="btn" id="contentDetailDone" type="button">تم الانتهاء</button>` : ``}
         <button class="btn secondary" id="contentDetailOk" type="button">تمام</button>
@@ -3674,13 +3740,31 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           if(btn) btn.disabled = false;
         }
       });
-      $("contentDetailReview")?.addEventListener("click", async ()=>{
-        if(!isAdminRole()) return toast("المراجعة للمدير فقط");
-        try{
-          await updateDoc(doc(db,"content_tasks", t.id), { reviewed: !t.reviewed, reviewedAt: serverTimestamp(), reviewedBy: CURRENT_USER?.uid || null, updatedAt: serverTimestamp() });
-          toast("✅ تم تحديث المراجعة");
-          closeContentDetail();
-        }catch(e){ console.error(e); toast("⚠️ فشل تحديث المراجعة"); }
+      body.querySelectorAll("[data-content-review-uid]").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          const reviewUid = String(btn.getAttribute("data-content-review-uid") || "").trim();
+          const currentUid = String(CURRENT_USER?.uid || "");
+          if(!reviewUid) return;
+          if(!(isAdminRole() || reviewUid === currentUid)) return toast("كل يوزر يقدر يعمل مراجعة للزرار الخاص به فقط");
+          const reviewedUids = uniqueContentUids([...contentReviewedUids(t), reviewUid]);
+          const participants = contentParticipantUids(t);
+          const reviewedNames = reviewedUids.map(uid=> contentUserName(uid)).filter(Boolean);
+          const allReviewed = participants.length > 0 && participants.every(uid=> reviewedUids.includes(uid));
+          btn.disabled = true;
+          try{
+            await updateDoc(doc(db,"content_tasks", t.id), {
+              reviewedUids,
+              reviewedNames,
+              reviewed: allReviewed,
+              reviewedAt: serverTimestamp(),
+              reviewedBy: CURRENT_USER?.uid || null,
+              updatedAt: serverTimestamp()
+            });
+            toast("✅ تم تسجيل المراجعة");
+            closeContentDetail();
+          }catch(e){ console.error(e); toast("⚠️ فشل تسجيل المراجعة"); }
+          finally{ btn.disabled = false; }
+        });
       });
       $("contentDetailDone")?.addEventListener("click", async ()=>{
         if(!contentCanFinish(t)) return toast("التاسك لا يُغلق إلا بواسطة المسؤول الأساسي أو مشارك التنفيذ");
