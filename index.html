@@ -1915,7 +1915,7 @@
     };
 
     // Google Drive upload endpoint (Google Apps Script Web App)
-    const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzIbmlwvrFZl_kueV0NKCJ88qpM7FcYpIs5JgAc7ERNiiLnoqm-I1BlRFNdTKVVZIPM/exec";
+    const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbwWLmP17foDYvNlMIY6tc4lKvrHPK4HI_71FsKDy0leTDDbKpvt3xZ6I9Verkbk9IB5/exec";
 
   // ===== Unique Spec Key Source (Agenda DB) =====
   // يتم استخدام هذه القاعدة فقط لجلب خيارات الـ Spec Key داخل مودال إنشاء التاسك (بدون إضافة صفحة جديدة).
@@ -2006,22 +2006,50 @@
       if(!file) throw new Error("missing-file");
       if(!DRIVE_UPLOAD_URL) throw new Error("missing-drive-upload-url");
       const base64 = await fileToBase64(file);
-      const res = await fetch(DRIVE_UPLOAD_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          taskId: String(area || "tasks") + "_" + String(taskId || "general"),
-          name: file.name || "file",
-          type: file.type || "application/octet-stream",
-          file: base64
-        })
-      });
-      const data = await res.json();
-      if(!data || data.success !== true) throw new Error(data?.error || "drive-upload-failed");
+      let res;
+      try{
+        res = await fetch(DRIVE_UPLOAD_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow",
+          body: JSON.stringify({
+            taskId: String(area || "tasks") + "_" + String(taskId || "general"),
+            name: file.name || "file",
+            type: file.type || "application/octet-stream",
+            file: base64
+          })
+        });
+      }catch(fetchErr){
+        console.error("DRIVE FETCH ERROR", fetchErr);
+        throw new Error("فشل الاتصال بسكربت الرفع: " + (fetchErr?.message || fetchErr));
+      }
+
+      const rawText = await res.text().catch(()=>"");
+      let data = null;
+      try{
+        data = JSON.parse(rawText);
+      }catch(parseErr){
+        console.error("DRIVE NON JSON RESPONSE", { status: res.status, statusText: res.statusText, rawText });
+        throw new Error("سكربت الرفع رجّع رد غير صالح. افتح رابط Apps Script وتأكد أنه يعرض JSON. Status: " + res.status);
+      }
+
+      if(!res.ok){
+        console.error("DRIVE HTTP ERROR", { status: res.status, data });
+        throw new Error(data?.error || ("فشل سكربت الرفع. Status: " + res.status));
+      }
+      if(!data || data.success !== true){
+        console.error("DRIVE APP ERROR", data);
+        throw new Error(data?.error || "drive-upload-failed");
+      }
+
+      const finalUrl = data.url || data.viewUrl || (data.fileId ? ("https://drive.google.com/file/d/" + data.fileId + "/view?usp=sharing") : "");
+      if(!finalUrl) throw new Error("تم الرفع لكن لم يرجع رابط الملف من السكربت");
       return {
         name: data.name || file.name || "file",
-        title: data.name || file.name || "file",
-        url: data.url || "",
+        title: data.title || data.name || file.name || "file",
+        url: finalUrl,
+        viewUrl: data.viewUrl || finalUrl,
+        downloadUrl: data.downloadUrl || null,
         fileId: data.fileId || null,
         folderUrl: data.folderUrl || null,
         size: file.size || 0,
@@ -3670,6 +3698,7 @@ let unsubKpiWs=null, unsubKpiTasks=null;
             await appendContentResources({ id: taskId, ...(CONTENT_CURRENT || {}) }, pickedFiles, linkItem ? [linkItem] : []);
           }catch(fileErr){
             console.error("content resources upload failed", fileErr);
+            toast("⚠️ " + (fileErr?.message || fileErr || "فشل رفع الملفات"), 8000);
             fileWarn = true;
           }
         }
@@ -3743,8 +3772,8 @@ let unsubKpiWs=null, unsubKpiTasks=null;
           toast("✅ تم حفظ الملفات / اللينك");
           closeContentDetail();
         }catch(e){
-          console.error(e);
-          toast("⚠️ فشل حفظ الملفات / اللينك");
+          console.error("CONTENT ATTACH SAVE ERROR", e);
+          toast("⚠️ " + (e?.message || e || "فشل حفظ الملفات / اللينك"), 8000);
         }finally{
           if(btn) btn.disabled = false;
         }
