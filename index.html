@@ -1915,7 +1915,7 @@
     };
 
     // Google Drive upload endpoint (Google Apps Script Web App)
-    const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzg_04Ar-Ka9wkV0suGiWgoVP9eSwOSrB4GSBQJc8DccJK4zcL9K0xUTimV_3oL6Wxz/exec";
+    const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyhnJIbAHsxYmCwEqxWykRkyvqIYcn_z0QgoF9POhZLRrwBSZZ8htI9AsHFeBmyDm6s/exec";
 
   // ===== Unique Spec Key Source (Agenda DB) =====
   // يتم استخدام هذه القاعدة فقط لجلب خيارات الـ Spec Key داخل مودال إنشاء التاسك (بدون إضافة صفحة جديدة).
@@ -3594,12 +3594,21 @@ let unsubKpiWs=null, unsubKpiTasks=null;
       if(!additions.length) return [];
       const oldFiles = normalizeContentFiles(task || {});
       const merged = normalizeContentFiles([...oldFiles, ...additions]);
+      const keepOpenPatch = contentIsDone(task)
+        ? { status: task.status || "done" }
+        : { status: "open", active: true, deleted: false, doneAt: null, doneByUid: null, doneByName: null };
       await updateDoc(doc(db,"content_tasks", task.id), {
         files: merged,
         attachments: merged,
+        ...keepOpenPatch,
         updatedAt: serverTimestamp(),
         updatedBy: CURRENT_USER?.uid || null
       });
+      const i = CONTENT_TASKS.findIndex(x => x.id === task.id);
+      if(i >= 0){
+        CONTENT_TASKS[i] = { ...CONTENT_TASKS[i], files: merged, attachments: merged, ...keepOpenPatch };
+        renderContent();
+      }
       return additions;
     }
     async function saveContentTask(){
