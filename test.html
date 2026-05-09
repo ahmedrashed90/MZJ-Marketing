@@ -18,6 +18,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -915,6 +916,10 @@
     .campaign-logic-table td{background:#fff;border-top:1px solid #efe5dd;border-bottom:1px solid #efe5dd;padding:10px;vertical-align:top;line-height:1.8}
     .campaign-logic-table td:first-child{border-right:1px solid #efe5dd;border-radius:0 12px 12px 0;font-weight:900;color:var(--brown);width:220px}
     .campaign-logic-table td:last-child{border-left:1px solid #efe5dd;border-radius:12px 0 0 12px}
+    .campaign-board-import{border:1px solid #efe5dd;border-radius:18px;background:#fffaf5;padding:14px;margin-bottom:14px;box-shadow:0 10px 26px rgba(62,36,32,.06)}
+    .campaign-board-import-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .campaign-board-import-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .campaign-board-import-actions input[type=file]{min-width:260px;background:#fff}
 
 
     /* ===== Departments Tab (isolated) ===== */
@@ -1220,6 +1225,19 @@
           </div>
         </div>
         <div class="body">
+          <div class="campaign-board-import" id="campaignBoardImport" style="display:none">
+            <div class="campaign-board-import-head">
+              <div>
+                <strong>رفع شيت بيانات الحملة</strong>
+                <div class="muted">اليوزرات يرفعوا الشيت من هنا بعد إنشاء الحملة. الأعمدة هتتكوّن تلقائيًا حسب نوع المحتوى، والتاسكات بنفس النوع هتتجمع في نفس العمود.</div>
+              </div>
+              <div class="campaign-board-import-actions">
+                <input id="campaignBoardSheetFile" type="file" accept=".xlsx,.xls,.csv" />
+                <button class="btn secondary sm" id="btnCampaignBoardImport" type="button">⬆️ استيراد الشيت</button>
+              </div>
+            </div>
+            <div class="campaign-sheet-status" id="campaignBoardSheetStatus">اختار شيت الحملة لاستيراد البيانات والتاسكات.</div>
+          </div>
           <div class="board" id="boardCols"></div>
         </div>
       </section>
@@ -1443,7 +1461,7 @@
               </div>
               <div>
                 <label>كاتب المحتوى</label>
-                <select id="campaignWriterUid"><option value="">— اختر كاتب المحتوى —</option></select>
+                <select id="campaignWriterUid" multiple size="6"><option value="">— اختر كاتب المحتوى —</option></select>
               </div>
               <div>
                 <label>تاريخ بداية الحملة</label>
@@ -1477,7 +1495,7 @@
 
         <div class="divider"></div>
 
-        <div>
+        <div id="boardColumnsEditor">
           <label>أسماء الأعمدة (الكروت)</label>
           <div class="hint" style="color:var(--muted)">أعمدة الحملات الافتراضية حسب المحتوى: الهوك، الاسكربت الأساسي، CTA، الكابشن، هاشتاج. ويمكنك إضافة أعمدة أخرى عند الحاجة.</div>
 
@@ -2740,15 +2758,31 @@ let MODE = "home";
     function fillCampaignWriterSelect(selected=""){
       const sel = $("campaignWriterUid");
       if(!sel) return;
-      const cur = selected || sel.value || "";
+      const raw = Array.isArray(selected) ? selected : (selected ? [selected] : (sel.multiple ? Array.from(sel.selectedOptions).map(o=>o.value) : [sel.value]));
+      const selectedSet = new Set(raw.map(x=>String(x||"").trim()).filter(Boolean));
       sel.innerHTML = `<option value="">— اختر كاتب المحتوى —</option>`;
       USERS.slice().sort((a,b)=> (a.name||"").localeCompare(b.name||"", "ar")).forEach(u=>{
         const opt = document.createElement("option");
         opt.value = u.uid;
         opt.textContent = u.name + (u.role ? ` (${u.role})` : "");
+        opt.selected = selectedSet.has(String(u.uid));
         sel.appendChild(opt);
       });
-      sel.value = cur;
+    }
+
+    function getSelectedCampaignWriters(){
+      const sel = $("campaignWriterUid");
+      if(!sel) return [];
+      if(sel.multiple) return Array.from(sel.selectedOptions).map(o=>String(o.value||"").trim()).filter(Boolean);
+      const v = String(sel.value||"").trim();
+      return v ? [v] : [];
+    }
+
+    function setSelectedCampaignWriters(uids){
+      const sel = $("campaignWriterUid");
+      if(!sel) return;
+      const set = new Set((Array.isArray(uids)?uids:[uids]).map(x=>String(x||"").trim()).filter(Boolean));
+      Array.from(sel.options).forEach(o=>{ o.selected = set.has(String(o.value||"")); });
     }
 
     function getSelectedTaskAssignees(){
@@ -5762,7 +5796,9 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       $("btnCreateCampaign").style.display="none";
 
       $("pageTitle").textContent = workspace.type==="agenda" ? "لوحة الأجندة" : "لوحة الحملة";
-      $("pageDesc").textContent  = "اضغط ➕ داخل أي عمود لإضافة تاسك. اضغط على التاسك لرؤية التفاصيل أو التعديل.";
+      $("pageDesc").textContent  = workspace.type === "campaign"
+        ? "مدير التسويق ينشئ الحملة، واليوزرات يرفعوا الشيت من داخل الحملة لتكوين الأعمدة والتاسكات."
+        : "اضغط ➕ داخل أي عمود لإضافة تاسك. اضغط على التاسك لرؤية التفاصيل أو التعديل.";
 
       $("boardTitle").textContent = workspace.name || "بدون اسم";
       if(workspace.type==="campaign"){
@@ -5817,6 +5853,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
       // show VIN for the selected spec key
       
+      if(campaignBoardImport){
+        campaignBoardImport.style.display = workspace.type === "campaign" ? "" : "none";
+        if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = "اختار شيت الحملة لاستيراد البيانات والتاسكات. سيتم تجميع التاسكات تلقائيًا حسب نوع المحتوى.";
+      }
+
       showView("board");
 
       $("btnEditBoard").onclick = ()=> openBoardModal(workspace.type, "edit", workspace);
@@ -5845,27 +5886,37 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     }
 
     function getBoardDisplayColumns(workspace, tasks){
-      const baseCols = Array.isArray(workspace?.columns) && workspace.columns.length ? workspace.columns.slice() : ["قائمة"];
-      const taskCols = Array.from(new Set((Array.isArray(tasks)?tasks:[])
-        .map(t => String(t?.column || '').trim())
-        .filter(Boolean)));
-
-      const finalCols = baseCols.slice();
+      const isCampaign = workspace?.type === "campaign";
+      const cleanCol = (name)=> isCampaign ? normalizeCampaignColumnName(name) : String(name || '').trim();
+      const baseRaw = Array.isArray(workspace?.columns) && workspace.columns.length ? workspace.columns.slice() : (isCampaign ? [] : ["قائمة"]);
+      const finalCols = [];
+      const seen = new Set();
+      const keyOf = (name)=> isCampaign ? campaignColumnKey(name) : String(name || '').trim();
       const pushIfMissing = (name)=>{
-        const v = String(name || '').trim();
+        const v = cleanCol(name);
         if(!v) return;
-        if(!finalCols.includes(v)) finalCols.push(v);
+        const key = keyOf(v);
+        if(seen.has(key)) return;
+        seen.add(key);
+        finalCols.push(v);
       };
 
-      taskCols.forEach(colName=>{
-        const v = String(colName || '').trim();
-        if(!v || finalCols.includes(v)) return;
+      baseRaw.forEach(pushIfMissing);
+      const taskCols = Array.from(new Set((Array.isArray(tasks)?tasks:[])
+        .map(t => cleanCol(t?.column || ''))
+        .filter(Boolean)
+        .map(v => isCampaign ? campaignColumnKey(v) + '::' + v : v)));
+
+      taskCols.forEach(colToken=>{
+        const v = isCampaign ? colToken.split('::').slice(1).join('::') : colToken;
+        if(!v || seen.has(keyOf(v))) return;
 
         const doneMatch = v.match(/^(.*?)(?:\s*[—-]\s*|\s+)تم الانتهاء$/);
         if(doneMatch){
-          const baseName = String(doneMatch[1] || '').trim();
-          const baseIdx = finalCols.indexOf(baseName);
+          const baseName = cleanCol(doneMatch[1] || '');
+          const baseIdx = finalCols.findIndex(c=> keyOf(c) === keyOf(baseName));
           if(baseIdx >= 0){
+            seen.add(keyOf(v));
             finalCols.splice(baseIdx + 1, 0, v);
             return;
           }
@@ -5881,32 +5932,51 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       const colsEl = $("boardCols");
       colsEl.innerHTML = "";
 
-      let cols = getBoardDisplayColumns(workspace, tasks);
-      const byCol = {};
-      cols.forEach(c=> byCol[c]=[]);
-      tasks.forEach(t=>{
-        const c = t.column || cols[0];
-        if(!byCol[c]) byCol[c]=[];
-        byCol[c].push(t);
+      const isCampaignBoard = workspace?.type === "campaign";
+      const cleanCol = (name)=> isCampaignBoard ? normalizeCampaignColumnName(name) : String(name || "").trim();
+      const keyOf = (name)=> isCampaignBoard ? campaignColumnKey(name) : String(name || "").trim();
+
+      const descriptors = [];
+      const byKey = new Map();
+      const ensureColumn = (name)=>{
+        const display = cleanCol(name);
+        if(!display) return null;
+        const key = keyOf(display);
+        if(!key) return null;
+        if(!byKey.has(key)){
+          const item = { key, name: display, tasks: [] };
+          byKey.set(key, item);
+          descriptors.push(item);
+        }
+        return byKey.get(key);
+      };
+
+      getBoardDisplayColumns(workspace, tasks).forEach(ensureColumn);
+      (Array.isArray(tasks) ? tasks : []).forEach(t=>{
+        const rawCol = cleanCol(t.column || (descriptors[0]?.name || "قائمة"));
+        const item = ensureColumn(rawCol) || ensureColumn("قائمة");
+        if(item) item.tasks.push(t);
       });
 
-      if (workspace?.type === "agenda") {
-        const hasAnyTasks = tasks.length > 0;
-        if (hasAnyTasks) {
-          cols = cols.filter(colName => {
-            const list = byCol[colName] || [];
-            return list.length > 0;
-          });
-        }
+      let cols = descriptors;
+      if(workspace?.type === "agenda"){
+        const hasAnyTasks = Array.isArray(tasks) && tasks.length > 0;
+        if(hasAnyTasks) cols = cols.filter(c => c.tasks.length > 0);
       }
 
-      cols.forEach(colName=>{
+      if(workspace?.type === "campaign" && (!Array.isArray(tasks) || !tasks.length) && (!Array.isArray(workspace.columns) || !workspace.columns.length)){
+        colsEl.innerHTML = `<div class="empty" style="grid-column:1/-1">الحملة اتعملت بنجاح. ارفع شيت بيانات الحملة من الجزء الموجود بالأعلى عشان الأعمدة والتاسكات تظهر حسب نوع المحتوى.</div>`;
+        return;
+      }
+
+      cols.forEach(colInfo=>{
+        const colName = colInfo.name;
+        const list = colInfo.tasks || [];
         const col = document.createElement("section");
         col.className = "col";
         if(String(colName||'').includes('تم الانتهاء')) col.classList.add('done-col');
         if(/تم الانتهاء/.test(colName)) col.classList.add("done-col");
 
-        const list = byCol[colName] || [];
         const head = document.createElement("div");
         head.className = "col-head";
         head.innerHTML = `
@@ -5938,10 +6008,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
             const assignee = resolveUserDisplayName(t);
             const due = t.due || t.taskCreatedDate || "—";
             const specKey = t.specKey || "—";
+            const showSpec = t.type !== "campaign";
 
             card.innerHTML = `
-              <p class="t-title">${escapeHtml((t.title||"").trim() || specKey)}</p>
-              <p class="t-sub">${escapeHtml(specKey)}</p>
+              <p class="t-title">${escapeHtml((t.title||"").trim() || (showSpec ? specKey : "تاسك حملة"))}</p>
+              ${showSpec ? `<p class="t-sub">${escapeHtml(specKey)}</p>` : ""}
               <div class="t-meta">
                 <span class="badge"><span class="dot"></span>${escapeHtml(assignee)}</span>
                 <span class="badge" style="background:#fff;border-color:rgba(62,36,32,.10)"><span class="dot" style="background:#6b7280"></span>📅 ${escapeHtml(due)}</span>
@@ -6011,6 +6082,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     const campaignLogicSheetStatus = $("campaignLogicSheetStatus");
     const btnClearCampaignLogicSheet = $("btnClearCampaignLogicSheet");
     const btnCampaignLogicTemplate = $("btnCampaignLogicTemplate");
+    const boardColumnsEditor = $("boardColumnsEditor");
+    const campaignBoardImport = $("campaignBoardImport");
+    const campaignBoardSheetFile = $("campaignBoardSheetFile");
+    const btnCampaignBoardImport = $("btnCampaignBoardImport");
+    const campaignBoardSheetStatus = $("campaignBoardSheetStatus");
     const colInput = $("colInput");
     const colsChips = $("colsChips");
 
@@ -6020,7 +6096,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     let COLUMNS_TMP = [];
 
     const DEFAULT_AGENDA_COLS = ["ريل مواصفات","ريل قصير","تصميم صور","يوتيوب","تحت المراجعة"];
-    const DEFAULT_CAMPAIGN_COLS = ["الهوك","الاسكربت الأساسي","CTA","الكابشن","هاشتاج"];
+    const DEFAULT_CAMPAIGN_COLS = [];
 
     const CAMPAIGN_LOGIC_REQUIRED_FIELDS = [
       "معنى العنصر داخل MZJ",
@@ -6113,10 +6189,10 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       return wb.SheetNames.find(n=>!normalizeCell(n).includes(normalizeCell("ظوابط"))) || wb.SheetNames[0];
     }
     function extractFixedWritingRules(wb){
-      const name = wb.SheetNames.find(n=> normalizeCell(n).includes(normalizeCell("ظوابط")));
-      if(!name) return [];
-      const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:"", raw:false });
-      return rows.map(r=> cellText(r[1] || r[0])).filter(Boolean);
+      // لا نقرأ أي قواعد من تاب "ظوابط كتابة المحتوى".
+      // مصدر قواعد كتابة المحتوى للحملة هو سكشن:
+      // Writing Rules - قواعد كتابة المحتوى داخل نفس شيت الحملة فقط.
+      return [];
     }
     function parseCampaignSheetWorkbook(wb, fileName=""){
       const sheetName = findCampaignSheetName(wb);
@@ -6131,14 +6207,14 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         campaignType: extractKeyValueFromMatrix(matrix, ["نوع الحمله", "نوع الحملة"]),
         logic: {},
         writingRules: [],
-        fixedWritingRules: extractFixedWritingRules(wb),
+        fixedWritingRules: [],
         tasks: []
       };
 
       let logicStart = -1, writingStart = -1, contentStart = -1;
       matrix.forEach((row, idx)=>{
         if(logicStart < 0 && rowIncludes(row, ["campaign logic"])) logicStart = idx;
-        if(writingStart < 0 && rowIncludes(row, ["Writing Rules - قواعد كتابة المحتوى", "قواعد كتابة المحتوى"])) writingStart = idx;
+        if(writingStart < 0 && rowIncludes(row, ["Writing Rules - قواعد كتابة المحتوى"])) writingStart = idx;
         if(contentStart < 0 && rowIncludes(row, ["Content Execution Direction - آلية تنفيذ المحتوى"])) contentStart = idx;
       });
 
@@ -6162,9 +6238,15 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         const end = contentStart >= 0 ? contentStart : matrix.length;
         for(let r=writingStart; r<end; r++){
           const row = matrix[r] || [];
-          for(let c=2; c<row.length; c++){
+          for(let c=0; c<row.length; c++){
             const v = cellText(row[c]);
-            if(v) parsed.writingRules.push(v);
+            if(!v) continue;
+            const n = normalizeCell(v);
+            if(n === normalizeCell("Writing Rules - قواعد كتابة المحتوى")) continue;
+            if(n === normalizeCell("قواعد كتابة المحتوى")) continue;
+            if(n === normalizeCell("محتوي حملات MZJ")) continue;
+            if(n === normalizeCell("محتوى حملات MZJ")) continue;
+            parsed.writingRules.push(v);
           }
         }
       }
@@ -6198,9 +6280,38 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       const key = findSheetKey(task, labels);
       return key ? cellText(task[key]) : "";
     }
+    function normalizeCampaignColumnName(name){
+      const cleaned = String(name || "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
+        .replace(/\u00A0/g, " ")
+        .replace(/[ً-ٰٟ]/g, "")
+        .replace(/ـ/g, "")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/(?:[_\.\-]\s*\d+)$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      return cleaned || "بدون نوع محتوى";
+    }
+    function campaignColumnKey(name){
+      return normalizeCampaignColumnName(name)
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
+        .replace(/\u00A0/g, " ")
+        .replace(/[إأآا]/g, "ا")
+        .replace(/ى/g, "ي")
+        .replace(/ة/g, "ه")
+        .replace(/[\u064B-\u065F\u0670]/g, "")
+        .replace(/ـ/g, "")
+        .replace(/(?:[_\.\-]\s*\d+)$/g, "")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
     function taskFromImportedRow(row, workspace, idx){
       const taskNumber = parsedTaskValue(row, ["رقم التاسك"]);
-      const contentType = parsedTaskValue(row, ["نوع المحتوى", "نوع المحتوي"]);
+      const contentType = normalizeCampaignColumnName(parsedTaskValue(row, ["نوع المحتوى", "نوع المحتوي"]));
       const idea = parsedTaskValue(row, ["الفكرة"]);
       const contentName = parsedTaskValue(row, ["اسم المحتوي", "اسم المحتوى", "الاسم المقترح للكريتييف"]);
       const title = contentName || idea || contentType || taskNumber || `تاسك حملة ${idx+1}`;
@@ -6211,7 +6322,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       return {
         workspaceId: workspace.id,
         type: "campaign",
-        column: DEFAULT_CAMPAIGN_COLS[0],
+        column: contentType || "بدون نوع محتوى",
         title,
         specKey: null,
         description: required || parsedTaskValue(row, ["وصف المحتوي", "وصف المحتوى"]) || null,
@@ -6245,6 +6356,72 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         source: "campaign_sheet_import"
       };
     }
+    function getCampaignColumnsFromParsed(parsed){
+      const cols = [];
+      const seen = new Set();
+      (parsed?.tasks || []).forEach(t=>{
+        const v = normalizeCampaignColumnName(parsedTaskValue(t, ["نوع المحتوى", "نوع المحتوي"]));
+        const key = campaignColumnKey(v);
+        if(v && !seen.has(key)){
+          seen.add(key);
+          cols.push(v);
+        }
+      });
+      return cols;
+    }
+
+    async function importCampaignSheetToCurrentBoard(file){
+      if(!file) return toast("اختار شيت الحملة أولًا");
+      if(!CURRENT_WORKSPACE || CURRENT_WORKSPACE.type !== "campaign") return toast("الاستيراد متاح داخل الحملات فقط");
+      if(!window.XLSX) return toast("⚠️ مكتبة قراءة Excel لم يتم تحميلها");
+      if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = "جاري قراءة واستيراد الشيت...";
+      if(btnCampaignBoardImport) btnCampaignBoardImport.disabled = true;
+      try{
+        const buffer = await file.arrayBuffer();
+        const wb = window.XLSX.read(buffer, { type: "array" });
+        const parsed = parseCampaignSheetWorkbook(wb, file.name);
+        const html = buildCampaignLogicHtmlFromParsed(parsed);
+        const cols = getCampaignColumnsFromParsed(parsed);
+
+        const patch = {
+          columns: cols,
+          importedSheetName: parsed.fileName || file.name || null,
+          importedSheetParsedAt: new Date().toISOString(),
+          importedCampaignTasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+          importedWritingRules: [...new Set([...(parsed.writingRules || [])].filter(Boolean))],
+          updatedAt: serverTimestamp(),
+          updatedBy: CURRENT_USER?.uid || null
+        };
+        if(html){
+          patch.description = html;
+          patch.campaignLogic = html;
+        }
+        if(parsed.campaignType && !CURRENT_WORKSPACE.campaignType) patch.campaignType = parsed.campaignType;
+        if(parsed.campaignSerial && !(CURRENT_WORKSPACE.serial || CURRENT_WORKSPACE.campaignSerial)){
+          patch.serial = parsed.campaignSerial;
+          patch.campaignSerial = parsed.campaignSerial;
+        }
+
+        await updateDoc(doc(db,"workspaces", CURRENT_WORKSPACE.id), patch);
+        const updatedWorkspace = { ...CURRENT_WORKSPACE, ...patch };
+        const oldImported = CAMPAIGN_IMPORTED_SHEET;
+        CAMPAIGN_IMPORTED_SHEET = parsed;
+        await importCampaignSheetTasksToWorkspace(updatedWorkspace);
+        CAMPAIGN_IMPORTED_SHEET = oldImported;
+        CURRENT_WORKSPACE = updatedWorkspace;
+        renderBoardColumns(CURRENT_WORKSPACE, applyBoardUserFilter(BOARD_TASKS_ALL || []));
+        if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = `تم استيراد الشيت: ${file.name} — الأعمدة: ${cols.length} — التاسكات: ${(parsed.tasks||[]).length}`;
+        toast("✅ تم استيراد شيت الحملة وتجميع التاسكات حسب نوع المحتوى");
+      }catch(err){
+        console.error("campaign board import failed", err);
+        if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = "فشل استيراد الشيت. تأكد من هيكل الملف.";
+        toast("⚠️ فشل استيراد شيت الحملة");
+      }finally{
+        if(campaignBoardSheetFile) campaignBoardSheetFile.value = "";
+        if(btnCampaignBoardImport) btnCampaignBoardImport.disabled = false;
+      }
+    }
+
     function buildCampaignLogicHtmlFromParsed(parsed){
       const logicRows = [];
       const pushRow = (label, value)=>{ if(cellText(value)) logicRows.push(`<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value).replace(/\n/g,"<br>")}</td></tr>`); };
@@ -6258,7 +6435,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(!CAMPAIGN_LOGIC_REQUIRED_FIELDS.includes(label) && !["اسم الحملة","رقم الحملة","نوع الحملة","التوجيه الاستراتيجي الثابت","العنصر"].includes(label)) pushRow(label, value);
       });
       const logicTable = logicRows.length ? `<h4 style="margin:12px 0 6px;color:var(--brown)">Campaign Logic</h4><table class="campaign-logic-table"><tbody>${logicRows.join("")}</tbody></table>` : "";
-      const rules = [...new Set([...(parsed.fixedWritingRules || []), ...(parsed.writingRules || [])].filter(Boolean))];
+      const rules = [...new Set([...(parsed.writingRules || [])].filter(Boolean))];
       const rulesHtml = rules.length ? `<h4 style="margin:14px 0 6px;color:var(--brown)">قواعد كتابة المحتوى</h4><ul>${rules.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : "";
       const taskHeaders = ["نوع الحملة","نوع المحتوى","رقم التاسك","الهدف","الهدف الملموس","الفكرة","وصف المحتوى","الرسالة","المطلوب من الكاتب","CTA"];
       const taskRows = (parsed.tasks || []).map(t=>`<tr>${taskHeaders.map(h=>`<td>${escapeHtml(parsedTaskValue(t,[h]) || (h==="نوع الحملة" ? parsedTaskValue(t,["نوع الحمله"]) : ""))}</td>`).join("")}</tr>`).join("");
@@ -6286,7 +6463,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(sheetGoal && campaignGoalText && !String(campaignGoalText.value || "").trim()) campaignGoalText.value = sheetGoal;
         campaignDesc.innerHTML = html;
         CAMPAIGN_IMPORTED_SHEET = parsed;
-        if(BOARD_MODAL_TYPE === "campaign") COLUMNS_TMP = [...DEFAULT_CAMPAIGN_COLS];
+        if(BOARD_MODAL_TYPE === "campaign") COLUMNS_TMP = getCampaignColumnsFromParsed(parsed);
         renderColChips();
         if(campaignLogicSheetStatus) campaignLogicSheetStatus.textContent = `تم تحميل الشيت: ${file.name} — ${parsed.tasks.length} تاسكات جاهزة للاستيراد`;
         toast("✅ تم قراءة شيت الحملة وتحويله إلى Campaign Logic");
@@ -6323,6 +6500,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(campaignLogicSheetStatus) campaignLogicSheetStatus.textContent = "تم مسح بيانات الشيت من Campaign Logic.";
     });
     btnCampaignLogicTemplate?.addEventListener("click", downloadCampaignLogicTemplate);
+    btnCampaignBoardImport?.addEventListener("click", ()=> importCampaignSheetToCurrentBoard(campaignBoardSheetFile?.files?.[0]));
+    campaignBoardSheetFile?.addEventListener("change", ()=> importCampaignSheetToCurrentBoard(campaignBoardSheetFile?.files?.[0]));
 
     $("boardModalClose").addEventListener("click", ()=> closeBoardModal());
     $("boardCancel").addEventListener("click", ()=> closeBoardModal());
@@ -6386,10 +6565,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(campaignGoalText) campaignGoalText.value = workspace?.goalText || "";
       if(campaignType) campaignType.value = workspace?.campaignType || "";
       if(campaignSerial) campaignSerial.value = workspace?.serial || workspace?.campaignSerial || "";
-      fillCampaignWriterSelect(workspace?.writerUid || "");
-      if(campaignLogicSheetStatus) campaignLogicSheetStatus.textContent = type==="campaign" ? "ارفع شيت الحملة الكامل أو الشيت الفاضي بنفس الهيكل؛ سيتم تحويله إلى Campaign Logic وتاسكات جاهزة." : "";
+      fillCampaignWriterSelect(Array.isArray(workspace?.writerUids) ? workspace.writerUids : (workspace?.writerUid || ""));
+      if(campaignLogicSheetStatus) campaignLogicSheetStatus.textContent = type==="campaign" ? "اختياري: يمكن رفع الشيت هنا أثناء التعديل، لكن الحملة يمكن إنشاؤها بدون شيت." : "";
+      if(boardColumnsEditor) boardColumnsEditor.style.display = type==="campaign" ? "none" : "";
 
-      COLUMNS_TMP = Array.isArray(workspace?.columns) ? [...workspace.columns] : (type==="campaign" ? [...DEFAULT_CAMPAIGN_COLS] : []);
+      COLUMNS_TMP = Array.isArray(workspace?.columns) ? [...workspace.columns] : [];
       renderColChips();
 
       boardModal.classList.add("show");
@@ -6405,7 +6585,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       if(campaignGoalText) campaignGoalText.value = "";
       if(campaignType) campaignType.value = "";
       if(campaignSerial) campaignSerial.value = "";
-      if(campaignWriterUid) campaignWriterUid.value = "";
+      if(campaignWriterUid) setSelectedCampaignWriters([]);
       if(campaignLogicSheetFile) campaignLogicSheetFile.value = "";
       CAMPAIGN_IMPORTED_SHEET = null;
       if(campaignLogicSheetStatus) campaignLogicSheetStatus.textContent = "ارفع شيت الحملة الكامل أو الشيت الفاضي بنفس الهيكل؛ سيتم تحويله إلى Campaign Logic وتاسكات جاهزة.";
@@ -6415,7 +6595,6 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       const name = (boardName.value||"").trim();
       if(!name) return toast("اكتب اسم الأجندة/الحملة");
       if(BOARD_MODAL_TYPE!=="campaign" && !COLUMNS_TMP.length) return toast("أضف عمود واحد على الأقل");
-      if(BOARD_MODAL_TYPE==="campaign" && !COLUMNS_TMP.length) COLUMNS_TMP = [...DEFAULT_CAMPAIGN_COLS];
 
       const payload = {
         type: BOARD_MODAL_TYPE,
@@ -6425,7 +6604,9 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       };
 
       if(BOARD_MODAL_TYPE==="campaign"){
-        const writer = USERS.find(u=>u.uid===(campaignWriterUid?.value || ""));
+        const writerUids = getSelectedCampaignWriters();
+        const writerObjs = writerUids.map(uid=> USERS.find(u=>u.uid===uid)).filter(Boolean);
+        const writer = writerObjs[0] || null;
         payload.description = (campaignDesc.innerHTML||"").trim() || null;
         payload.campaignLogic = (campaignDesc.innerHTML||"").trim() || null;
         payload.startDate = campaignStart.value || null;
@@ -6435,13 +6616,15 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         payload.campaignType = (campaignType?.value || "").trim() || null;
         payload.serial = (campaignSerial?.value || "").trim() || null;
         payload.campaignSerial = payload.serial;
-        payload.writerUid = campaignWriterUid?.value || null;
+        payload.writerUid = writerUids[0] || null;
         payload.writerName = writer?.name || writer?.email || null;
+        payload.writerUids = writerUids;
+        payload.writerNames = writerObjs.map(u=> u.name || u.email || u.uid);
         if(CAMPAIGN_IMPORTED_SHEET){
           payload.importedSheetName = CAMPAIGN_IMPORTED_SHEET.fileName || null;
           payload.importedSheetParsedAt = new Date().toISOString();
           payload.importedCampaignTasks = Array.isArray(CAMPAIGN_IMPORTED_SHEET.tasks) ? CAMPAIGN_IMPORTED_SHEET.tasks : [];
-          payload.importedWritingRules = [...new Set([...(CAMPAIGN_IMPORTED_SHEET.fixedWritingRules || []), ...(CAMPAIGN_IMPORTED_SHEET.writingRules || [])].filter(Boolean))];
+          payload.importedWritingRules = [...new Set([...(CAMPAIGN_IMPORTED_SHEET.writingRules || [])].filter(Boolean))];
         }
       }
 
@@ -6473,16 +6656,26 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       const imported = CAMPAIGN_IMPORTED_SHEET;
       if(!workspace?.id || !imported || !Array.isArray(imported.tasks) || !imported.tasks.length) return;
       const existingSnap = await getDocs(query(collection(db,"workspace_tasks"), where("workspaceId","==", workspace.id)));
+
       const existingNumbers = new Set();
+      const deletePromises = [];
       existingSnap.forEach(d=>{
         const x = d.data() || {};
+        if(x.type === "campaign" && x.source === "campaign_sheet_import"){
+          deletePromises.push(deleteDoc(doc(db,"workspace_tasks", d.id)));
+          return;
+        }
         const n = String(x.campaignTaskNumber || x.taskNumber || "").trim();
         if(n) existingNumbers.add(n);
       });
+      if(deletePromises.length) await Promise.all(deletePromises);
+
       let created = 0;
       for(let i=0; i<imported.tasks.length; i++){
         const row = imported.tasks[i];
         const payload = taskFromImportedRow(row, workspace, i);
+        payload.column = normalizeCampaignColumnName(payload.contentType || payload.column || "بدون نوع محتوى");
+        payload.contentType = payload.column;
         if(payload.taskNumber && existingNumbers.has(payload.taskNumber)) continue;
         payload.createdAt = serverTimestamp();
         payload.createdBy = CURRENT_USER?.uid || null;
@@ -6695,6 +6888,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
         
         const isCampaign = TASK_CTX.workspace.type==="campaign";
+        const specWrap = taskSpecKey?.closest('.speckey-full');
+        if(specWrap) specWrap.style.display = isCampaign ? "none" : "";
         // الحملات: اعرض كل السيارات حتى لو اتعملها مونتاج قبل كده
         setSpecKeyMode(isCampaign ? "all" : "filtered");
         taskLinksWrap.style.display = isCampaign ? "" : "none";
@@ -6719,6 +6914,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
         
         const isCampaign = CURRENT_TASK.type==="campaign";
+        const specWrap = taskSpecKey?.closest('.speckey-full');
+        if(specWrap) specWrap.style.display = isCampaign ? "none" : "";
         setSpecKeyMode(isCampaign ? "all" : "filtered");
         taskLinksWrap.style.display = isCampaign ? "" : "none";
         if(campaignTaskFields) campaignTaskFields.classList.toggle("show", isCampaign);
@@ -6735,6 +6932,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       TASK_CTX = null;
       LINKS_TMP = [];
       if(campaignTaskFields) campaignTaskFields.classList.remove("show");
+      const specWrap = taskSpecKey?.closest('.speckey-full');
+      if(specWrap) specWrap.style.display = "";
       // رجّع الوضع الافتراضي للأجندة
       setSpecKeyMode("filtered");
     }
@@ -6803,7 +7002,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         payload.campaignTaskNumber = (ctTaskNumber?.value || "").trim() || null;
         payload.taskNumber = payload.campaignTaskNumber;
         payload.creativeName = (ctCreativeName?.value || "").trim() || null;
-        payload.contentType = (ctContentType?.value || "").trim() || null;
+        payload.contentType = normalizeCampaignColumnName((ctContentType?.value || "").trim() || TASK_CTX.column || "");
+        payload.column = payload.contentType || normalizeCampaignColumnName(TASK_CTX.column || "بدون نوع محتوى");
         payload.taskGoal = (ctGoal?.value || "").trim() || null;
         payload.goal = payload.taskGoal;
         payload.mainMessage = (ctMainMessage?.value || "").trim() || null;
@@ -6921,6 +7121,102 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
     $("dAttachmentSave")?.addEventListener("click", saveWorkspaceTaskAttachments);
 
+    function parseTaskTemplateWorkbook(wb){
+      const parsed = {};
+      const setIf = (key, value)=>{
+        const v = cellText(value);
+        if(v && !parsed[key]) parsed[key] = v;
+      };
+      const labelMap = [
+        ["campaignName", ["اسم الحملة", "اسم الحمله"]],
+        ["campaignSerial", ["رقم الحملة", "رقم الحمله"]],
+        ["campaignType", ["نوع الحملة", "نوع الحمله"]],
+        ["taskNumber", ["رقم التاسك"]],
+        ["creativeName", ["الاسم المقترح للكريتييف", "اسم المحتوى", "اسم المحتوي"]],
+        ["contentType", ["نوع المحتوى", "نوع المحتوي"]],
+        ["goal", ["الهدف"]],
+        ["tangibleGoal", ["الهدف الملموس"]],
+        ["idea", ["الفكرة"]],
+        ["contentDescription", ["وصف المحتوى", "وصف المحتوي"]],
+        ["mainMessage", ["الرسالة", "الرسالة الأساسية", "الرساله الاساسيه", "الرسالة الاساسية"]],
+        ["writerRequest", ["المطلوب من الكاتب"]],
+        ["hook", ["الهوك"]],
+        ["mainScript", ["السكريبت الاساسي", "الاسكربت الاساسي", "الاسكربت الأساسي"]],
+        ["cta", ["CTA"]],
+        ["caption", ["الكابشن"]],
+        ["hashtags", ["هاشتاج", "هاشتاجات"]],
+        ["partDue", ["تاريخ تسليم هذا الجزء", "تاريخ تسليم الجزء", "تاريخ التسليم"]]
+      ];
+      (wb.SheetNames || []).forEach(sheetName=>{
+        const matrix = window.XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, defval:"", raw:false });
+        matrix.forEach(row=>{
+          for(let c=0; c<row.length; c++){
+            const label = cellText(row[c]);
+            if(!label) continue;
+            labelMap.forEach(([field, labels])=>{
+              if(labels.some(l=> normalizeCell(l) === normalizeCell(label))){
+                setIf(field, nextNonEmptyInRow(row, c+1));
+              }
+            });
+          }
+        });
+        for(let r=0; r<matrix.length; r++){
+          const row = matrix[r] || [];
+          const norm = row.map(normalizeCell);
+          const hasTaskNo = norm.includes(normalizeCell("رقم التاسك"));
+          const hasContentType = norm.includes(normalizeCell("نوع المحتوى")) || norm.includes(normalizeCell("نوع المحتوي"));
+          if(!hasTaskNo && !hasContentType) continue;
+          const headers = row.map(cellText);
+          const data = (matrix.slice(r+1).find(x=> (x||[]).some(v=>cellText(v))) || []);
+          const obj = {};
+          headers.forEach((h,i)=>{ if(h) obj[h] = cellText(data[i]); });
+          labelMap.forEach(([field, labels])=> setIf(field, parsedTaskValue(obj, labels)));
+          break;
+        }
+      });
+      if(parsed.contentType) parsed.contentType = normalizeCampaignColumnName(parsed.contentType);
+      return parsed;
+    }
+
+    async function importTaskTemplateIntoCurrentTask(file){
+      if(!file) return toast("اختار شيت Task Template أولًا");
+      if(!CURRENT_TASK?.id || CURRENT_TASK.type !== "campaign") return toast("رفع Task Template متاح لتاسكات الحملات فقط");
+      if(!window.XLSX) return toast("⚠️ مكتبة قراءة Excel لم يتم تحميلها");
+      try{
+        const buffer = await file.arrayBuffer();
+        const wb = window.XLSX.read(buffer, { type:"array" });
+        const parsed = parseTaskTemplateWorkbook(wb);
+        if(!Object.keys(parsed).length) return toast("الشيت لا يحتوي على بيانات Task Template واضحة");
+        const patch = { updatedAt: serverTimestamp(), updatedBy: CURRENT_USER?.uid || null, importedTaskTemplateName: file.name || null, importedTaskTemplateAt: new Date().toISOString() };
+        if(parsed.campaignName) patch.campaignName = parsed.campaignName;
+        if(parsed.campaignSerial) patch.campaignSerial = parsed.campaignSerial;
+        if(parsed.campaignType) patch.campaignType = parsed.campaignType;
+        if(parsed.taskNumber){ patch.campaignTaskNumber = parsed.taskNumber; patch.taskNumber = parsed.taskNumber; }
+        if(parsed.creativeName){ patch.creativeName = parsed.creativeName; patch.title = parsed.creativeName; }
+        if(parsed.contentType){ patch.contentType = parsed.contentType; patch.column = parsed.contentType; }
+        if(parsed.goal){ patch.taskGoal = parsed.goal; patch.goal = parsed.goal; }
+        if(parsed.tangibleGoal) patch.tangibleGoal = parsed.tangibleGoal;
+        if(parsed.idea) patch.idea = parsed.idea;
+        if(parsed.contentDescription){ patch.contentDescription = parsed.contentDescription; patch.description = parsed.contentDescription; }
+        if(parsed.mainMessage){ patch.mainMessage = parsed.mainMessage; patch.message = parsed.mainMessage; }
+        if(parsed.writerRequest) patch.writerRequest = parsed.writerRequest;
+        if(parsed.hook) patch.hook = parsed.hook;
+        if(parsed.mainScript){ patch.mainScript = parsed.mainScript; patch.script = parsed.mainScript; }
+        if(parsed.cta) patch.cta = parsed.cta;
+        if(parsed.caption) patch.caption = parsed.caption;
+        if(parsed.hashtags) patch.hashtags = parsed.hashtags;
+        if(parsed.partDue){ patch.partDue = parsed.partDue; patch.due = parsed.partDue; }
+        await updateDoc(doc(db,"workspace_tasks", CURRENT_TASK.id), patch);
+        CURRENT_TASK = { ...CURRENT_TASK, ...patch };
+        renderCampaignTaskDetails(CURRENT_TASK);
+        renderBoardColumns(CURRENT_WORKSPACE, applyBoardUserFilter(BOARD_TASKS_ALL || []));
+        toast("✅ تم استيراد بيانات Task Template داخل التاسك");
+      }catch(err){
+        console.error("task template import failed", err);
+        toast("⚠️ فشل استيراد Task Template");
+      }
+    }
+
     function renderCampaignTaskDetails(task){
       const block = $("dCampaignTaskBlock");
       const box = $("dCampaignTaskDetails");
@@ -6947,7 +7243,21 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         ["هاشتاج", task.hashtags || "—"],
         ["تاريخ تسليم الجزء", task.partDue || "—"]
       ];
-      box.innerHTML = rows.map(([k,v])=>`<div class="row"><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></div>`).join("");
+      box.innerHTML = rows.map(([k,v])=>`<div class="row"><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></div>`).join("") + `
+        <div class="divider"></div>
+        <div class="campaign-fieldset" style="margin-top:0">
+          <div class="campaign-fieldset-title">⬆️ رفع Task Template لهذا التاسك</div>
+          <div class="campaign-sheet-actions">
+            <input id="dTaskTemplateFile" type="file" accept=".xlsx,.xls,.csv" />
+            <button class="btn secondary sm" id="dTaskTemplateImport" type="button">استيراد بيانات التاسك</button>
+          </div>
+          <div class="campaign-sheet-status">ارفع شيت TASK TEMPLATE، والبيانات هتنزل في نفس التاسك وتحدّث نوع المحتوى/العمود لو موجود.</div>
+        </div>`;
+      const btn = document.getElementById("dTaskTemplateImport");
+      const inp = document.getElementById("dTaskTemplateFile");
+      if(btn && inp){
+        btn.addEventListener("click", ()=> importTaskTemplateIntoCurrentTask(inp.files?.[0]));
+      }
     }
 
     function openTaskDetail(task){
@@ -6955,6 +7265,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
 
       $("dTitle").value = task.title || "";
       $("dSpecKey").value = task.specKey || "";
+      const dSpecWrap = $("dSpecKey")?.parentElement;
+      if(dSpecWrap) dSpecWrap.style.display = task.type === "campaign" ? "none" : "";
       $("dCreatedDate").value = task.taskCreatedDate || task.createdDate || "—";
       $("dDue").value = task.due || "—";
       $("dAssignee").value = resolveUserDisplayName(task);
