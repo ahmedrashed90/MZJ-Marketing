@@ -19,6 +19,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -921,6 +922,9 @@
     .campaign-board-import-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
     .campaign-board-import-actions input[type=file]{min-width:260px;background:#fff}
 
+    .detail-title-template-row #dTaskTemplateTopBlock{grid-column:auto;}
+    @media(max-width:860px){.detail-title-template-row #dTaskTemplateTopBlock{grid-column:1 / -1;}}
+
 
     /* ===== Departments Tab (isolated) ===== */
     .dept-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -1193,6 +1197,12 @@
         <div class="head">
           <strong id="listTitle">...</strong>
           <div class="actions">
+            <div id="listUserFilterWrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+              <label style="margin:0;font-size:12px;color:var(--muted)">فلترة باليوزر</label>
+              <select id="listUserFilter" class="inp" style="min-width:240px;height:38px">
+                <option value="">كل اليوزرات</option>
+              </select>
+            </div>
             <button class="btn secondary sm" id="btnRefresh" type="button">⟳ تحديث</button>
           </div>
         </div>
@@ -1633,8 +1643,16 @@
         <button class="btn secondary xs" id="detailClose" type="button">إغلاق</button>
       </div>
       <div class="m-body">
-        <div class="grid2">
+        <div class="grid2 detail-title-template-row">
           <div><label>اسم التاسك</label><input id="dTitle" readonly/></div>
+          <div id="dTaskTemplateTopBlock" style="display:none">
+            <label>⬆️ رفع Task Template لهذا التاسك</label>
+            <div class="campaign-sheet-actions">
+              <input id="dTaskTemplateFile" type="file" accept=".xlsx,.xls,.csv" />
+              <button class="btn secondary sm" id="dTaskTemplateImport" type="button">استيراد بيانات التاسك</button>
+            </div>
+            <div class="campaign-sheet-status">ارفع شيت Task Template، وبياناته هتكون هي تفاصيل التاسك.</div>
+          </div>
           <div><label>Unique Spec Key</label><input id="dSpecKey" readonly/></div>
         </div>
         <div class="grid2">
@@ -2604,6 +2622,46 @@ let MODE = "home";
     let BOARD_USER_FILTER_UID = "";
     let BOARD_DONE_ONLY = false;
     let BOARD_TASKS_ALL = [];
+    let CAMPAIGN_LIST_USER_FILTER_UID = "";
+
+    function userNameByUid(uid){
+      const u = USERS.find(x=> String(x.uid||"") === String(uid||""));
+      return u?.name || u?.email || "";
+    }
+
+    function workspaceCreatorName(workspace){
+      if(!workspace) return "—";
+      return workspace.createdByName || userNameByUid(workspace.createdBy) || workspace.createdByEmail || "—";
+    }
+
+    function campaignMatchesListUser(workspace, uid){
+      const u = String(uid || "").trim();
+      if(!u) return true;
+      const writerUids = Array.isArray(workspace?.writerUids) ? workspace.writerUids.map(String) : [];
+      return String(workspace?.createdBy || "") === u || String(workspace?.writerUid || "") === u || writerUids.includes(u);
+    }
+
+    function fillListUserFilter(type){
+      const wrap = $("listUserFilterWrap");
+      const sel = $("listUserFilter");
+      if(!wrap || !sel) return;
+      if(type !== "campaign"){
+        wrap.style.display = "none";
+        CAMPAIGN_LIST_USER_FILTER_UID = "";
+        sel.value = "";
+        return;
+      }
+      wrap.style.display = "flex";
+      const cur = CAMPAIGN_LIST_USER_FILTER_UID || "";
+      sel.innerHTML = `<option value="">كل اليوزرات</option>`;
+      USERS.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","ar")).forEach(u=>{
+        const opt = document.createElement("option");
+        opt.value = u.uid;
+        opt.textContent = u.name || u.email || u.uid;
+        sel.appendChild(opt);
+      });
+      sel.value = cur;
+    }
 
     let unsubWorkspaces = null;
     let unsubTasks = null;
@@ -5661,6 +5719,10 @@ function openDailyTaskModal(ctx){
     }
 
     $("btnRefresh").addEventListener("click", ()=> { if(LIST_TYPE) openList(LIST_TYPE); });
+    $("listUserFilter")?.addEventListener("change", (e)=>{
+      CAMPAIGN_LIST_USER_FILTER_UID = String(e.target.value || "");
+      if(LIST_TYPE === "campaign") openList("campaign");
+    });
 
     // Board filter (agenda): show tasks for selected user
     $("boardUserFilter").addEventListener("change", (e)=>{
@@ -5700,6 +5762,7 @@ function openDailyTaskModal(ctx){
         $("pageDesc").textContent  = "إنشاء حملة جديدة بهدف الإدارة، رقم Serial، Campaign Logic، وتاسكات محتوى قابلة للتصدير PDF.";
         $("listTitle").textContent = "قائمة الحملات";
         $("listEmpty").textContent = "لا توجد حملات حتى الآن. استخدم زر حملة جديدة بالأعلى.";
+        fillListUserFilter("campaign");
         showView("list");
         listenWorkspaces(type);
         return;
@@ -5716,6 +5779,7 @@ function openDailyTaskModal(ctx){
 
       $("listTitle").textContent = "قائمة الأجندات";
       $("listEmpty").textContent = "لا يوجد عناصر حتى الآن. استخدم زر الإنشاء بالأعلى.";
+      fillListUserFilter("agenda");
 
       showView("list");
       listenWorkspaces(type);
@@ -5744,6 +5808,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     function renderList(type, items){
       const container = $("listContainer");
       const empty = $("listEmpty");
+      const allItems = Array.isArray(items) ? items : [];
+      items = (type === "campaign") ? allItems.filter(x=> campaignMatchesListUser(x, CAMPAIGN_LIST_USER_FILTER_UID)) : allItems;
       container.innerHTML = "";
       empty.style.display = items.length ? "none" : "";
 
@@ -5760,7 +5826,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           const e = x.endDate || "—";
           const serial = x.serial || x.campaignSerial || "—";
           const ctype = x.campaignType || "—";
-          sub = `Serial: ${serial} | النوع: ${ctype} | الفترة: ${s} → ${e} | تاسكات: ${columnsCount}`;
+          const creator = workspaceCreatorName(x);
+          sub = `منشئ الحملة: ${creator} | Serial: ${serial} | النوع: ${ctype} | الفترة: ${s} → ${e} | تاسكات: ${columnsCount}`;
         }
 
         const descHtml = type==="campaign" ? (x.description||"") : "";
@@ -5808,7 +5875,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         const ctype = workspace.campaignType || "—";
         const goalDate = workspace.goalReceivedDate || "—";
         const logic = workspace.description ? workspace.description : "لا يوجد Campaign Logic";
-        $("boardSub").innerHTML = `Serial: <b>${escapeHtml(serial)}</b> | النوع: <b>${escapeHtml(ctype)}</b> | استلام الهدف: ${escapeHtml(goalDate)} | الفترة: ${escapeHtml(s)} → ${escapeHtml(e)}<br>${logic}`;
+        const creator = workspaceCreatorName(workspace);
+        $("boardSub").innerHTML = `منشئ الحملة: <b>${escapeHtml(creator)}</b> | Serial: <b>${escapeHtml(serial)}</b> | النوع: <b>${escapeHtml(ctype)}</b> | استلام الهدف: ${escapeHtml(goalDate)} | الفترة: ${escapeHtml(s)} → ${escapeHtml(e)}<br>${logic}`;
       }else{
         $("boardSub").textContent = `عدد الأعمدة: ${(workspace.columns||[]).length}`;
       }
@@ -5818,11 +5886,11 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         pdfBtn.onclick = ()=> exportCampaignPdf(workspace, BOARD_TASKS_ALL || []);
       }
 
-      // Agenda-only: filter tasks by assignee
+      // فلتر المسؤول يظهر في الأجندات والحملات؛ زر المنتهي يفضل للأجندة فقط
       const bfWrap = $("boardFilterWrap");
       const bfSel = $("boardUserFilter");
       const bfDoneBtn = $("boardDoneFilterBtn");
-      if(workspace.type === "agenda"){
+      if(workspace.type === "agenda" || workspace.type === "campaign"){
         bfWrap.style.display = "";
         BOARD_DONE_ONLY = false;
         // rebuild options each time (users may update)
@@ -5836,7 +5904,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         });
         bfSel.value = cur;
         if(bfDoneBtn){
-          bfDoneBtn.style.display = "";
+          bfDoneBtn.style.display = workspace.type === "agenda" ? "" : "none";
           bfDoneBtn.textContent = "إظهار المنتهي فقط";
           bfDoneBtn.className = "btn secondary sm";
         }
@@ -5867,19 +5935,28 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       listenTasksForWorkspace(workspace.id);
     }
 
+    function taskHasAssignee(task, uid){
+      const u = String(uid || "").trim();
+      if(!u) return true;
+      const assignees = Array.isArray(task?.assigneeUids) ? task.assigneeUids.map(String) : [];
+      return String(task?.assigneeUid || "") === u || assignees.includes(u);
+    }
+
     function applyBoardUserFilter(tasks){
       let arr = Array.isArray(tasks) ? [...tasks] : [];
-      if(!CURRENT_WORKSPACE || CURRENT_WORKSPACE.type !== "agenda") return arr;
+      if(!CURRENT_WORKSPACE || !["agenda","campaign"].includes(CURRENT_WORKSPACE.type)) return arr;
 
       const uid = String(BOARD_USER_FILTER_UID || "");
       if(uid){
-        arr = arr.filter(t => String(t.assigneeUid || "") === uid);
+        arr = arr.filter(t => taskHasAssignee(t, uid));
       }
 
-      if (BOARD_DONE_ONLY) {
-        arr = arr.filter(t => isTaskDone(t));
-      } else {
-        arr = arr.filter(t => !isTaskDone(t));
+      if(CURRENT_WORKSPACE.type === "agenda"){
+        if (BOARD_DONE_ONLY) {
+          arr = arr.filter(t => isTaskDone(t));
+        } else {
+          arr = arr.filter(t => !isTaskDone(t));
+        }
       }
 
       return arr;
@@ -5984,12 +6061,15 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
             <span>${escapeHtml(colName)}</span>
             <span class="count-badge">${list.length}</span>
           </div>
-          <button class="btn secondary xs" type="button">➕ تاسك</button>
+          ${isCampaignBoard ? "" : `<button class="btn secondary xs" type="button">➕ تاسك</button>`}
         `;
-        head.querySelector("button").addEventListener("click", (e)=>{
-          e.stopPropagation();
-          openTaskModal("create", { workspace, column: colName });
-        });
+        const addTaskBtn = head.querySelector("button");
+        if(addTaskBtn){
+          addTaskBtn.addEventListener("click", (e)=>{
+            e.stopPropagation();
+            openTaskModal("create", { workspace, column: colName });
+          });
+        }
 
         const body = document.createElement("div");
         body.className = "col-body";
@@ -5998,7 +6078,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
           const empty = document.createElement("div");
           empty.className = "empty";
           empty.style.fontSize = "12px";
-          empty.textContent = "لا يوجد تاسكات هنا. اضغط ➕ لإضافة تاسك.";
+          empty.textContent = isCampaignBoard ? "لا يوجد تاسكات هنا." : "لا يوجد تاسكات هنا. اضغط ➕ لإضافة تاسك.";
           body.appendChild(empty);
         }else{
           list.slice().sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).forEach(t=>{
@@ -6633,6 +6713,8 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(BOARD_MODAL_MODE==="create"){
           payload.createdAt = serverTimestamp();
           payload.createdBy = CURRENT_USER?.uid || null;
+          payload.createdByName = $("whoName")?.textContent || CURRENT_USER?.email || null;
+          payload.createdByEmail = CURRENT_USER?.email || null;
           const ref = await addDoc(collection(db,"workspaces"), payload);
           savedWorkspaceId = ref.id;
           toast("✅ تم إنشاء العنصر");
@@ -7208,12 +7290,33 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         if(parsed.partDue){ patch.partDue = parsed.partDue; patch.due = parsed.partDue; }
         await updateDoc(doc(db,"workspace_tasks", CURRENT_TASK.id), patch);
         CURRENT_TASK = { ...CURRENT_TASK, ...patch };
+        if($("dTitle")) $("dTitle").value = CURRENT_TASK.title || "";
+        if($("dDue")) $("dDue").value = CURRENT_TASK.due || "—";
+        if($("dDesc")) $("dDesc").value = CURRENT_TASK.description || "";
+        if($("dColumn")) $("dColumn").value = CURRENT_TASK.column || "";
+        if(Array.isArray(BOARD_TASKS_ALL)){
+          const idx = BOARD_TASKS_ALL.findIndex(x=> x.id === CURRENT_TASK.id);
+          if(idx >= 0) BOARD_TASKS_ALL[idx] = { ...BOARD_TASKS_ALL[idx], ...patch };
+        }
         renderCampaignTaskDetails(CURRENT_TASK);
         renderBoardColumns(CURRENT_WORKSPACE, applyBoardUserFilter(BOARD_TASKS_ALL || []));
         toast("✅ تم استيراد بيانات Task Template داخل التاسك");
       }catch(err){
         console.error("task template import failed", err);
         toast("⚠️ فشل استيراد Task Template");
+      }
+    }
+
+    function renderTaskTemplateTopBlock(task){
+      const block = $("dTaskTemplateTopBlock");
+      const btn = $("dTaskTemplateImport");
+      const inp = $("dTaskTemplateFile");
+      if(!block) return;
+      const show = task?.type === "campaign";
+      block.style.display = show ? "" : "none";
+      if(inp) inp.value = "";
+      if(btn){
+        btn.onclick = ()=> importTaskTemplateIntoCurrentTask(inp?.files?.[0]);
       }
     }
 
@@ -7243,25 +7346,12 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
         ["هاشتاج", task.hashtags || "—"],
         ["تاريخ تسليم الجزء", task.partDue || "—"]
       ];
-      box.innerHTML = rows.map(([k,v])=>`<div class="row"><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></div>`).join("") + `
-        <div class="divider"></div>
-        <div class="campaign-fieldset" style="margin-top:0">
-          <div class="campaign-fieldset-title">⬆️ رفع Task Template لهذا التاسك</div>
-          <div class="campaign-sheet-actions">
-            <input id="dTaskTemplateFile" type="file" accept=".xlsx,.xls,.csv" />
-            <button class="btn secondary sm" id="dTaskTemplateImport" type="button">استيراد بيانات التاسك</button>
-          </div>
-          <div class="campaign-sheet-status">ارفع شيت TASK TEMPLATE، والبيانات هتنزل في نفس التاسك وتحدّث نوع المحتوى/العمود لو موجود.</div>
-        </div>`;
-      const btn = document.getElementById("dTaskTemplateImport");
-      const inp = document.getElementById("dTaskTemplateFile");
-      if(btn && inp){
-        btn.addEventListener("click", ()=> importTaskTemplateIntoCurrentTask(inp.files?.[0]));
-      }
+      box.innerHTML = rows.map(([k,v])=>`<div class="row"><b>${escapeHtml(k)}</b><span>${escapeHtml(v)}</span></div>`).join("");
     }
 
     function openTaskDetail(task){
       CURRENT_TASK = task;
+      renderTaskTemplateTopBlock(task);
 
       $("dTitle").value = task.title || "";
       $("dSpecKey").value = task.specKey || "";
