@@ -1488,8 +1488,8 @@
             <div class="campaign-fieldset-title">🧠 Campaign Logic</div>
             <div class="campaign-sheet-actions">
               <input id="campaignLogicSheetFile" type="file" accept=".xlsx,.xls,.csv" />
-              <button class="btn secondary sm" id="btnCampaignLogicTemplate" type="button">⬇️ قالب الشيت</button>
-              <button class="btn ghost sm" id="btnClearCampaignLogicSheet" type="button">مسح بيانات الشيت</button>
+              <button class="btn secondary sm" id="btnCampaignLogicTemplate" type="button">⬇️ قالب ال</button>
+              <button class="btn ghost sm" id="btnClearCampaignLogicSheet" type="button">مسح بيانات ال</button>
             </div>
             <div class="campaign-sheet-status" id="campaignLogicSheetStatus">ارفع شيت الحملة الكامل أو الشيت الفاضي بنفس الهيكل؛ سيتم تحويله إلى Campaign Logic وتاسكات جاهزة.</div>
             <div class="rte-toolbar" id="campaignDescToolbar">
@@ -5923,7 +5923,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       
       if(campaignBoardImport){
         campaignBoardImport.style.display = workspace.type === "campaign" ? "" : "none";
-        if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = "اختار شيت الحملة لاستيراد البيانات والتاسكات. سيتم تجميع التاسكات تلقائيًا حسب نوع المحتوى.";
+        if(campaignBoardSheetStatus) campaignBoardSheetStatus.textContent = "";
       }
 
       showView("board");
