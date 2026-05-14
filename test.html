@@ -1122,7 +1122,7 @@
     #viewHome > .body:has(.mzj-db-complete-wrap){
       padding:4px 4px 8px !important;
     }
-    #viewHome .head:has(#mzjDbCreateBtn){
+    #viewHome .head:has(#mzjDbRefreshBtn){
       padding:8px 10px !important;
     }
     .mzj-db-complete-wrap{
@@ -7171,7 +7171,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
     #viewHome > .body:has(.mzj-db-complete-wrap){
       padding:4px 4px 8px !important;
     }
-    #viewHome .head:has(#mzjDbCreateBtn){
+    #viewHome .head:has(#mzjDbRefreshBtn){
       padding:8px 10px !important;
     }
     .mzj-db-complete-wrap{
@@ -8308,6 +8308,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
             <div class="muted" id="mzjDashMeta" style="margin-top:6px">متابعة الحملات والأجندات والتاسكات فقط</div>
           </div>
           <div class="actions">
+            <button class="btn sm" id="mzjCreateTaskBtn" type="button">➕ إنشاء تاسك</button>
             <button class="btn secondary sm" id="mzjRefreshDashBtn" type="button">⟳ تحديث</button>
           </div>
         </div>
@@ -8848,6 +8849,7 @@ unsubWorkspaces = onSnapshot(qy, (snap)=>{
       showView('home');
       $('viewHome').innerHTML = mzjBuildHomeHtml();
       mzjInstallCreateModal();
+      $('mzjCreateTaskBtn')?.addEventListener('click', ()=>mzjOpenCreateWorkflow());
       $('mzjRefreshDashBtn')?.addEventListener('click', ()=>mzjRenderDashboardAll());
       mzjListenDashboard();
     };
